@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="StatisticsDao">
+    <!-- 昨日新增会员数据统计 -->
+    <select id="getNewUser" parameterType="java.util.HashMap" resultType="int">
+        SELECT IFNULL(COUNT(a.id),0) AS new_person
+        FROM base_user a
+        WHERE A.ISDEL=0 and a.state=1
+        AND  date_format(a.create_time,'%Y-%m-%d %H:%i:%s') > date_format(#{beginTime},'%Y-%m-%d %H:%i:%s')
+        AND  date_format(a.create_time,'%Y-%m-%d %H:%i:%s') &lt; date_format(#{endTime},'%Y-%m-%d %H:%i:%s')
+    </select>
+
+
+    <select id="loadZDInfo" resultType="java.util.Map" parameterType="java.util.Map">
+        select sum(z.totalFee) as totalFee,
+        sum(z.cashFee) as cashFee,
+        sum(z.couponFee) as couponFee,
+        sum(z.deals) as deals
+        from(
+        SELECT
+        IFNULL(ROUND(SUM(t.order_total)/100,2),0) as totalFee,
+        IFNULL(ROUND(sum(case when t.state!=2 then t.gift_90 else 0 end)/100,2),0) as cashFee,
+        IFNULL(ROUND(sum(ROUND(case when t.state!=2 then t.gift_90 else 0 end *t.commission / 10000,2)),2),0) as couponFee,
+        count(t.code) as deals
+        FROM
+        order_main_union t
+        LEFT JOIN base_user e ON e.open_id = t.open_id
+        left join t_sys_user u on u.id = t.user_code
+        left join base_brand b on b.brand_code = t.brand_code
+        LEFT JOIN base_agent d on b.agent_code=d.agent_code
+        left join base_shop c on t.shop_code = c.sid
+        WHERE t.ISDEL = 0
+
+        <if test="beginTime!=null and beginTime!=''">
+            and   date_format(t.create_time,'%Y-%m-%d %H:%i:%s')>= date_format(#{beginTime},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="endTime!=null and endTime!=''">
+            and   date_format(t.create_time,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{endTime},'%Y-%m-%d %H:%i:%s')
+        </if>
+        union all
+        SELECT IFNULL(ROUND(SUM(e.allTotal),2),0) as totalFee,
+        IFNULL(ROUND(SUM(a.point90),2),0) as cashFee,
+        0 couponFee,
+        count(1) as deals
+
+        FROM
+        base_90_detail a
+        LEFT JOIN order_detail b ON a.sourceId = b.id
+        LEFT JOIN base_brand c ON a.brandId = c.brand_code
+        LEFT JOIN base_agent d ON c.agent_code = d.agent_code
+        LEFT JOIN order_main e ON b.orderId = e.id
+        left join base_user f on a.userId = f.id
+        WHERE
+        b.id IS NOT NULL
+        AND a.source = 1
+
+        <if test="beginTime!=null and beginTime!=''">
+            and   date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{beginTime},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="endTime!=null and endTime!=''">
+            and   date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{endTime},'%Y-%m-%d %H:%i:%s')
+        </if>
+        )as z
+    </select>
+
+
+
+    <select id="loadSDInfoCX" resultType="java.util.Map" parameterType="java.util.Map">
+        SELECT IFNULL(ROUND(SUM(a.point90)/100,2),0) as point,COUNT(a.id) as count from base_90_detail a
+        LEFT JOIN base_brand b on a.brandId=b.brand_code
+        where a.source=2 and a.isdel=1
+        <if test="beginTime!=null and beginTime!=''">
+            and   date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{beginTime},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="endTime!=null and endTime!=''">
+            and   date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{endTime},'%Y-%m-%d %H:%i:%s')
+        </if>
+    </select>
+
+    <select id="loadSDInfoFF" resultType="java.util.Map" parameterType="java.util.Map">
+        SELECT IFNULL(ROUND(SUM(a.point90)/100,2),0) as point,COUNT(a.id) as count from base_90_detail a
+        LEFT JOIN base_brand b on a.brandId=b.brand_code
+        where a.source=2 and a.isdel=0
+        <if test="beginTime!=null and beginTime!=''">
+            and   date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{beginTime},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="endTime!=null and endTime!=''">
+            and   date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{endTime},'%Y-%m-%d %H:%i:%s')
+        </if>
+    </select>
+
+
+    <select id="loadSTKInfo" resultType="java.util.Map" parameterType="java.util.Map">
+        SELECT IFNULL(ROUND(SUM(a.point90)/100,2),0) as point,COUNT(a.id) as count from base_90_detail a
+        LEFT JOIN base_brand b on a.brandId=b.brand_code
+        where a.source=4 and a.isdel=0
+        <if test="beginTime!=null and beginTime!=''">
+            and   date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{beginTime},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="endTime!=null and endTime!=''">
+            and   date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{endTime},'%Y-%m-%d %H:%i:%s')
+        </if>
+    </select>
+
+
+
+    <!-- 数据量 所有流水数据量 -->
+    <select id="loadTJInfo" parameterType="java.util.HashMap"
+            resultType="java.util.HashMap">
+        select SUM(count) as count,sum(payCoupon) as payCoupon,SUM(servicePayTotal) as servicePayTotal,sum(goodsTotal) as goodsTotal
+        ,sum(ylTotal) as ylTotal
+        ,sum(zfbTotal) as zfbTotal
+        ,sum(wxTotal) as wxTotal
+        ,sum(jlbTotal) as jlbTotal
+        ,sum(xzTotal) as xjTotal
+        from (
+        SELECT
+        count(a.id) AS count,
+        IFNULL(sum(case when a.state =1 then a.payCoupon else 0 end),0) AS payCoupon,
+        IFNULL(sum(case when a.state =1 then a.servicePayTotal else 0 end),0) AS servicePayTotal,
+        IFNULL(sum(case when a.state =1 then a.goodsTotal else 0 end),0) AS goodsTotal,
+        IFNULL(sum(case when (a.state =1 &amp;&amp; a.paymentRoute=1) then a.payTotal else 0 end),0) AS ylTotal,
+        IFNULL(sum(case when (a.state =1 &amp;&amp; a.paymentRoute=2) then a.payTotal else 0 end),0) AS zfbTotal,
+        IFNULL(sum(case when (a.state =1 &amp;&amp; a.paymentRoute=3) then a.payTotal else 0 end),0) AS wxTotal,
+        IFNULL(sum(case when a.state =1 then a.coinPayTotal else 0 end),0) AS jlbTotal,
+        IFNULL(sum(case when (a.state =1 &amp;&amp; a.paymentRoute=7) then a.payTotal else 0 end),0) AS xzTotal
+        FROM
+        order_main a
+        LEFT JOIN base_user b on b.id=a.buyUserId
+        LEFT JOIN t_sys_user c on c.id=a.userCode
+        WHERE
+        a.source = 1 and a.isdel=0
+        <if test="beginTime!=null and beginTime!=''">
+            and   date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{beginTime},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="endTime!=null and endTime!=''">
+            and   date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{endTime},'%Y-%m-%d %H:%i:%s')
+        </if>
+        union ALL
+        SELECT
+        count(a.id) AS count,
+        IFNULL(sum(case when a.state =1 then a.payCoupon else 0 end),0) AS payCoupon,
+        IFNULL(sum(case when a.state =1 then a.servicePayTotal else 0 end),0) AS servicePayTotal,
+        IFNULL(sum(case when a.state =1 then a.goodsTotal else 0 end),0) AS goodsTotal,
+        IFNULL(sum(case when (a.state =1 &amp;&amp; a.paymentRoute=1) then a.payTotal else 0 end),0) AS ylTotal,
+        IFNULL(sum(case when (a.state =1 &amp;&amp; a.paymentRoute=2) then a.payTotal else 0 end),0) AS zfbTotal,
+        IFNULL(sum(case when (a.state =1 &amp;&amp; a.paymentRoute=3) then a.payTotal else 0 end),0) AS wxTotal,
+        IFNULL(sum(case when a.state =1 then a.coinPayTotal else 0 end),0) AS jlbTotal,
+        IFNULL(sum(case when (a.state =1 &amp;&amp; a.paymentRoute=7) then a.payTotal else 0 end),0) AS xzTotal
+        FROM
+        order_main a
+        LEFT JOIN base_user b on b.id=a.buyUserId
+        LEFT JOIN t_sys_user c on c.id=a.userCode
+        WHERE
+        a.source = 0 and a.isdel=0
+        <if test="beginTime!=null and beginTime!=''">
+            and   date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{beginTime},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="endTime!=null and endTime!=''">
+            and   date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{endTime},'%Y-%m-%d %H:%i:%s')
+        </if>
+        UNION all
+        SELECT
+        count(t.code) as count,
+        IFNULL(ROUND(sum(case when t.state =1 then t.pay_90 else 0 end)/100,2),0) as payCoupon,
+        IFNULL(ROUND(sum(case when t.state =1 then t.cash_total else 0 end)/100,2),0) as servicePayTotal	,
+        IFNULL(ROUND(SUM(t.pay_90)/100,2),0) as goodsTotal,
+        IFNULL(ROUND(sum(case when (state =1 &amp;&amp; trade_type='UNIONPAY') then order_total else 0 end)/100,2),0) AS ylTotal,
+        IFNULL(ROUND(sum(case when (state =1 &amp;&amp; trade_type='ZFB-MICROPAY')then order_total else 0 end)/100,2),0) AS zfbTotal,
+        IFNULL(ROUND(sum(case when (state =1 &amp;&amp; trade_type='MICROPAY') then order_total else 0 end)/100,2),0) AS wxTotal,
+        IFNULL(ROUND(sum(case when state =1 then pay_coin else 0 end)/100,2),0) AS jlbTotal,
+        IFNULL(ROUND(sum(case when (state =1 &amp;&amp; trade_type='offline') then order_total else 0 end)/100,2),0) AS xzTotal
+        FROM order_main_90 t
+        LEFT JOIN t_sys_user c on c.id=t.user_code
+        WHERE t.ISDEL = 0
+        <if test="beginTime!=null and beginTime!=''">
+            and   date_format(t.create_time,'%Y-%m-%d %H:%i:%s')>= date_format(#{beginTime},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="endTime!=null and endTime!=''">
+            and   date_format(t.create_time,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{endTime},'%Y-%m-%d %H:%i:%s')
+        </if>
+        )a
+    </select>
+</mapper>

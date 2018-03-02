@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="
+		http://www.springframework.org/schema/beans
+		http://www.springframework.org/schema/beans/spring-beans-3.2.xsd
+		">
+
+    <bean id="zookeeperClient" class="com.framework.utils.zook.ZookeeperClientUtil">
+        <property name="servers" value="123.206.190.95,118.89.104.14,115.159.35.246" />
+        <property name="sessionTimeout" value="60000"/>
+        <!--zk 文件目录结构-->
+        <property name="mainPath" value="/jiuling" />
+    </bean>
+
+
+    <bean id="zooKeeperPropertyPlaceholderConfigurer" class="com.framework.utils.zook.ZooKeeperPropertyPlaceholderConfigurer">
+        <property name="configurationClient" ref="zookeeperClient"></property>
+        <property name="order" value="1" />
+        <!--ignoreUnresolvablePlaceholders:配置即当此PropertyPlaceholder不可解析时是否忽略-->
+        <property name="ignoreUnresolvablePlaceholders" value="true" />
+        <property name="locations">
+            <list>
+                <value>classpath:conf/zk.properties</value>
+            </list>
+        </property>
+    </bean>
+
+
+</beans>

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="AddressDao">
+<select id="getUserAddressList" parameterType="String" resultType="java.util.Map">
+ select a.*,concat(c.text,d.text,e.text,a.addDetail) as addr from address a
+    left join base_user b on a.userId=b.id
+    left join t_sys_area c on c.id=a.pro
+    left join t_sys_area d on d.id=a.city
+    left join t_sys_area e on e.id=a.area
+    where a.isdel=0 and b.unionId=#{unionId}
+</select>
+   <select id="getAddressById" parameterType="String" resultType="java.util.Map">
+      select a.*,concat(c.text,d.text,e.text,a.addDetail) as addr,c.text as proName,d.text as cityName,e.text as areaName from address a
+      left join base_user b on a.userId=b.id
+      left join t_sys_area c on c.id=a.pro
+      left join t_sys_area d on d.id=a.city
+      left join t_sys_area e on e.id=a.area
+      where a.id=#{id}
+      order by a.createTime desc
+   </select>
+   <select id="getAddressList" parameterType="String" resultType="java.util.Map">
+      select * from t_sys_area where isdel=0 and pid!=-1 order by id asc
+   </select>
+
+   <update id="clearUserDefaultAddressByUnionId" parameterType="java.util.Map">
+      update address a
+      LEFT JOIN base_user b on b.id=a.userId
+      set a.isdefault=0
+      where b.unionId=#{unionid}
+   </update>
+   <update id="updateAddressByUnionId" parameterType="java.util.Map">
+      update address set name=#{name},phone=#{phone},pro=#{province},city=#{city},area=#{county},addDetail=#{addr},isdefault=#{isdefault}
+      where id=#{id}
+   </update>
+
+<insert id="saveAddressByUnionId" parameterType="java.util.Map">
+   INSERT into address(id,
+   name,
+   phone,
+   pro,
+   city,
+   area,
+   addDetail,
+   isdefault,
+   userId
+   )
+   select #{id},#{name},#{phone},#{province},#{city},#{county},#{addr},#{isdefault},id from base_user where unionId=#{unionid}
+   GROUP BY unionId
+</insert>
+</mapper>

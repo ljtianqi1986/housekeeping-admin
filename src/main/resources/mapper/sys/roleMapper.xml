@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+
+<mapper namespace="roleDao">
+
+	<select id="getRoleList" parameterType="String" resultType="com.biz.model.Pmodel.sys.Prole">
+		select * from t_role where isdel=0
+		order by createTime desc
+	</select>
+
+	<!-- 查询所有角色列表 -->
+	<select id="showAllRole" parameterType="String" resultType="com.biz.model.Pmodel.basic.PagentTree">
+		SELECT
+		t.id,
+		'#' AS parent,
+		t.roleName AS text
+		FROM
+		t_role t
+		WHERE
+		t.isdel = 0
+		order by t.id
+	</select>
+
+    <select id="getRoleListByUserId" parameterType="String" resultType="com.biz.model.Pmodel.sys.Prole">
+        SELECT
+        t.id,
+        '#' AS parent,
+        t.roleName AS text
+        FROM
+        t_role t
+        left join t_user_role r on t.id=r.role_id
+        WHERE
+        t.isdel = 0
+        and r.user_id=#{UserId}
+        order by t.id
+    </select>
+
+	<!-- 根据选中的角色加载对应菜单列表 -->
+	<select id="getMenuByRole" parameterType="com.biz.model.Pmodel.sys.Prole" resultType="com.biz.model.Pmodel.basic.PagentTree">
+		SELECT
+		t.id,
+		IF (t.pid = '0', '#', t.pid) AS parent,
+		t.text,
+		IF(IFNULL(t.classIcon,'')='','fa fa-sun-o',IFNULL(t.classIcon,'')) as icon,
+		if(ifnull(z.menu_id,'-1')='-1','0','1') as isselected
+		FROM
+		`t_menu` t
+		LEFT JOIN (
+		SELECT
+		t.menu_id
+		FROM
+		t_sys_role_menu AS t
+		WHERE
+		t.role_id = #{id}
+		) AS z ON t.id = z.menu_id
+		order by t.id
+	</select>
+
+
+	<!-- 先删除老的菜单列表，不在新的菜单列表中的数据 -->
+	<select id="findDeleteRoleMenuNotInNews" resultType="com.biz.model.Pmodel.sys.Prole">
+		SELECT *
+		FROM
+		t_sys_role_menu
+		WHERE
+		id IN (
+			SELECT
+			*
+			FROM
+			(
+				SELECT
+				t.id
+				FROM
+				t_sys_role_menu t
+				WHERE
+				t.role_id = #{id}
+				AND t.menu_id NOT IN (#{menu_id_sql})
+			) AS z
+		)
+	</select>
+
+
+
+	<!-- 先删除老的菜单列表，不在新的菜单列表中的数据 -->
+	<select id="showRoleButtonGrid" resultType="com.biz.model.Pmodel.sys.Prole">
+		SELECT
+		t.*, m.text AS menu_name,
+		m.nameSpace AS nameSpace,
+		m.href,
+		if(LOCATE('add', t.permission)>0,1,0) AS `add`,
+		if(LOCATE('del', t.permission)>0,1,0) AS `del`,
+		if(LOCATE('update', t.permission)>0,1,0) AS `update`,
+		if(LOCATE('query', t.permission)>0,1,0) AS `query`
+		FROM
+		t_sys_role_menu t
+		LEFT JOIN t_menu m ON t.menu_id = m.id
+		WHERE
+		t.role_id = #{id}
+		order by t.menu_id
+	</select>
+
+    <!-- 删除 -->
+    <delete id="deleteUserRoles" parameterType="String">
+        DELETE FROM t_user_role WHERE user_id=#{userId}
+    </delete>
+
+    <!-- 添加 -->
+    <insert id="saveUserRole" parameterType="java.util.Map">
+        INSERT INTO t_user_role VALUES (#{code},#{userId},#{roleId})
+    </insert>
+</mapper>

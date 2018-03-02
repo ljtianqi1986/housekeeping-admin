@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="salesDao">
+
+	<select id="querySales" resultType="com.biz.model.Pmodel.basic.Psales" parameterType="java.util.HashMap" >
+
+		select a.*,b.sid as shopId,b.business_name as shopName,c.name as brandName
+		from base_sales a
+		left join base_shop b on a.shopId = b.sid
+		left join base_brand c on b.brand_code = c.brand_code
+		where a.isdel = 0
+		<if test="identity == 4 ">
+			and b.sid = #{identityCode}
+		</if>
+		<if test="identity == 3 ">
+			and c.brand_code = #{identityCode}
+		</if>
+		<if test="name != null and name != '' ">
+			and a.name like concat('%',#{name} ,'%')
+		</if>
+		<if test="phone != null and phone != '' ">
+			and a.phone like concat('%',#{phone} ,'%')
+		</if>
+		order by a.createTime DESC
+		limit #{begin},#{rows}
+
+	</select>
+
+
+	<select id="querySalesCount" resultType="java.lang.Integer" parameterType="java.util.HashMap" >
+		select count(1)
+		from base_sales a
+		left join base_shop b on a.shopId = b.sid
+		left join base_brand c on b.brand_code = c.brand_code
+		where a.isdel = 0
+		<if test="identity == 4 ">
+			and b.sid = #{identityCode}
+		</if>
+		<if test="identity == 3 ">
+			and c.brand_code = #{identityCode}
+		</if>
+		<if test="name != null and name != '' ">
+			and a.name like concat('%',#{name} ,'%')
+		</if>
+		<if test="phone != null and phone != '' ">
+			and a.phone like concat('%',#{phone} ,'%')
+		</if>
+	</select>
+
+	<select id="getShopsForSales" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+		select b.sid as id, b.business_name as shopName
+		from base_shop b
+		WHERE b.isdel = 0
+		<if test="identity==3 ">
+			and b.brand_code = #{identityCode}
+		</if>
+		<if test="identity==4 ">
+			and b.sid = #{identityCode}
+		</if>
+
+	</select>
+
+
+</mapper>

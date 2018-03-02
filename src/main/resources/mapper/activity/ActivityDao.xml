@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="ActivityDao">
+
+	<!-- 查询所有活动数据 -->
+    <select id="sysActivityPage" resultType="java.util.HashMap" parameterType="java.util.HashMap" >
+        select a.id,a.name,a.startTime,a.endTime,a.mapid,a.type,a.state,a.create_time,a.isdel,a.userid,u.person_name
+        from t_sys_activity a left join sys_user u on u.user_code=a.userid where a.isdel=0
+        <if test="name != null and name != ''">
+            AND a.name LIKE CONCAT(CONCAT('%', #{name}),'%')
+        </if>
+        <if test="type != null and type != '' and type!=-1">
+            and a.type = #{type}
+        </if>
+        <if test="state != null and state != '' and state!=-1">
+            and a.state = #{state}
+        </if>
+        order by a.create_time asc
+        limit #{begin},#{rows}
+    </select>
+
+	<select id="sysActivityCode" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+        select a.id
+        from t_sys_activity a where a.isdel=0
+        <if test="name != null and name != ''">
+            AND a.name LIKE CONCAT(CONCAT('%', #{name}),'%')
+        </if>
+        <if test="type != null and type != '' and type!=-1">
+            and a.type = #{type}
+        </if>
+        <if test="state != null and state != '' and state!=-1">
+            and a.state = #{state}
+        </if>
+	</select>
+
+    <!-- 新增活动 -->
+    <insert id="insertActivity" parameterType="com.biz.model.Pmodel.Pactivity">
+        insert into t_sys_activity (id,startTime,endTime,mapid,type,name,userid)
+        values(#{id},#{startTime},#{endTime},#{mapid},#{type},#{name},#{userid})
+    </insert>
+
+    <!-- 开启关闭活动 -->
+    <insert id="updetActivityState" parameterType="com.biz.model.Pmodel.Pactivity">
+       update t_sys_activity set state=${state} where id=#{id}
+    </insert>
+
+
+	<!-- 删除活动s -->
+	<update id="updetActivityIsdel" parameterType="com.biz.model.Pmodel.Pactivity">
+		  update t_sys_activity set isdel=1 where id=#{id}
+	</update>
+
+    <!-- 修改活动主表mapid 即对应活动规则表-->
+    <update id="updetActivityMapid" parameterType="com.biz.model.Pmodel.Pactivity">
+        update t_sys_activity set mapid=#{mapid} where id=#{id}
+    </update>
+
+    <!-- 查询所有活动数据 -->
+    <select id="ActivityList" resultType="com.biz.model.Pmodel.Pactivity" parameterType="java.util.HashMap" >
+        select * from t_sys_activity
+        where isdel=0 and state=0 and LENGTH(mapid)>0 AND type=${type}
+        and UNIX_TIMESTAMP(#{nowTime}) BETWEEN UNIX_TIMESTAMP(startTime) and UNIX_TIMESTAMP(endTime)
+    </select>
+
+
+    <!-- 活动历史记录 -->
+    <insert id="insertActivityRecord" parameterType="java.util.HashMap">
+         insert into t_sys_activity_record (id,activityId,name,startTime,endTime,mapid,type,state,create_time,isdel,userid)
+         select #{recordId} as id,id as activityId,name,startTime,endTime,mapid,type,state,create_time,isdel,userid
+         from t_sys_activity where id=#{id}
+    </insert>
+
+</mapper>

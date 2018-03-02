@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="agentMapper">
+
+    <select id="findById" parameterType="java.util.Map"  resultType="com.biz.model.Pmodel.basic.Pagent">
+        select a.*,b.agent_name as agent_p_name,e.loginName from base_agent a
+        left join base_agent b on a.agent_p_code=b.agent_code
+        left join t_sys_user e on e.identity_code=a.agent_code and e.identity=2
+        where a.agent_code=#{id}
+        group by a.agent_code
+    </select>
+    <select id="findAgentGrid" parameterType="com.framework.model.Params" resultType="com.biz.model.Pmodel.basic.Pagent">
+        select a.agent_code,a.agent_name,a.agent_p_code,b.agent_name as 'agent_p_name',c.text as cityName,d.text as provinceName,e.loginName  from base_agent  a
+        LEFT JOIN base_agent b on a.agent_p_code=b.agent_code
+        LEFT JOIN t_sys_area  c on c.id=a.city
+        LEFT JOIN t_sys_area d on d.id=a.province
+        left join t_sys_user e on e.identity_code=a.agent_code and e.identity=2
+        where a.isdel=0
+        <if test="searchtext != null and searchtext != ''">
+            AND A.agent_name like concat('%',#{searchtext},'%')
+        </if>
+        ORDER BY a.create_time DESC
+        limit ${page},${rows}
+    </select>
+
+
+    <select id="findAgentCount" parameterType="com.framework.model.Params"  resultType="java.lang.Integer">
+        select count(a.agent_code) from base_agent  a
+        LEFT JOIN base_agent b on a.agent_p_code=b.agent_code
+        LEFT JOIN t_sys_area  c on c.id=a.city
+        LEFT JOIN t_sys_area d on d.id=a.province
+        left join t_sys_user e on e.identity_code=a.agent_code and e.identity=2
+        where a.isdel=0
+        <if test="searchtext != null and searchtext != ''">
+            AND A.agent_name like concat('%',#{searchtext},'%')
+        </if>
+
+    </select>
+<select id="getAgentListByUser" parameterType="com.biz.model.Pmodel.User" resultType="com.biz.model.Pmodel.basic.PagentTree">
+
+    select a.agent_code as id,(case a.agent_p_code when -1 then '#' ELSE a.agent_p_code end ) as parent,a.agent_name as text from base_agent a
+    where a.isdel=0
+
+</select>
+    <select id="getAgentListForSelect" parameterType="com.biz.model.Pmodel.User" resultType="com.biz.model.Pmodel.basic.Pagent">
+
+        select a.agent_code ,a.agent_name from base_agent a
+        where a.isdel=0
+        <if test="identity==2">
+            and a.agent_code =#{identity_code}
+        </if>
+        <if test="identity==3">
+            and a.agent_code in (select agent_code from base_brand where brand_code=#{identity_code})
+        </if>
+
+    </select>
+<select id="checkFlag" parameterType="com.biz.model.Pmodel.basic.Pagent"  resultType="java.lang.Integer">
+    select count(agent_code) from base_agent where isdel=0 and flag=#{flag}
+</select>
+
+    <select id="queryBrandByAgent" parameterType="String" resultType="java.util.HashMap">
+        SELECT
+        brand_code,
+        name
+        FROM
+        base_brand
+        WHERE
+        agent_code = #{identity_code} and isdel=0
+    </select>
+
+</mapper>

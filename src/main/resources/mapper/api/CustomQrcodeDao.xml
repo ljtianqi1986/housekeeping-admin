@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="CustomQrcodeDao">
+	<!-- 根据门店查询自定义二维码列表 -->
+	<select id="queryCustomQrcodeListByShop"  parameterType="String" resultType="com.biz.model.Pmodel.api.CustomQrcode">
+		SELECT * FROM custom_qrcode WHERE ISDEL = 0 AND SHOP_CODE = #{shop_code} ORDER BY CREATE_TIME DESC
+	</select>
+
+
+	<!-- 删除 -->
+	<update id="delCustomQrcodeByCode" parameterType="String">
+		UPDATE custom_qrcode SET ISDEL=1 WHERE code=#{code}
+	</update>
+
+
+	<!-- 添加 -->
+	<insert id="insertCustomQrcode" parameterType="com.biz.model.Pmodel.api.CustomQrcode"  useGeneratedKeys="true" keyProperty="code">
+		INSERT INTO	custom_qrcode(code,shop_code,user_code,money,remark,img_url)
+		VALUES (#{code},#{shop_code},#{user_code},#{money},#{remark},#{img_url})
+	</insert>
+
+
+	<!-- 获取 -->
+	<select id="getCreateTimeByMainCode" parameterType="String" resultType="String">
+		SELECT date_format(create_time,'%Y-%m-%d %H:%i:%s') as create_time FROM rg_gift WHERE code=#{sourceId} and ISDEL = 0
+	</select>
+</mapper>

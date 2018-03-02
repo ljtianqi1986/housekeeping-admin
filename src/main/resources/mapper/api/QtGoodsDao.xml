@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="QtGoodsDao">
+	<select id="getStateByCode" parameterType="java.util.Map" resultType="java.lang.Integer">
+		select count(1) from order_detail a
+		left join order_main b on a.orderId = b.id
+		where b.id = #{code}
+		and a.state in (1,2,3)
+		and a.isdel = 0
+	</select>
+
+
+	<select id="getOrderSumBy" parameterType="java.util.HashMap" resultType="java.lang.Integer">
+		select count(1) from order_detail a
+		left join base_wxgoods b on b.id = a.goodsId
+		where a.orderId = #{code}
+		and b.venderId=#{venderIdMain}
+		and a.isdel = 0
+	</select>
+
+	<select id="getVenderIdByCode" parameterType="java.util.HashMap" resultType="java.util.Map">
+		select ifnull(ws.venderId,'') as venderId,ifnull(a.stockId,'') as stockId,a.price,a.count as stock from order_detail a
+		left join base_wxgoods ws on ws.id = a.goodsId
+		where a.orderId = #{code}
+	</select>
+
+
+	<select id="queryGoodsSkuInfo2" resultType="java.util.HashMap" parameterType="java.util.Map">
+
+
+	</select>
+
+
+
+	<update id="doSellingCoupons" parameterType="String">
+		update order_detail set state = 4
+		where orderId = #{code}
+	</update>
+
+
+	<select id="queryGoodsSkuInfo" resultType="java.util.HashMap" parameterType="java.util.Map">
+
+		SELECT
+ws.id,
+		ws.price,
+		ws.stock,
+		g.name,
+		p.path as goodsPath,
+		g.isSale,
+		s1.name firstName,
+		s11.name firstValue,
+		s2.name secondName,
+		s22.name secondValue,
+		s3.name thirdName,
+		s33.name thirdValue,
+		tgu.name as unit,
+		ws.goodsId
+		FROM
+		base_wxgoods_stock ws
+		LEFT JOIN base_wxgoods g ON g.id = ws.goodsId
+left join t_goods_unit tgu on tgu.id = g.unitId
+LEFT JOIN (select p2.path,p2.mainId from
+(select MAX(id) as id from base_pics group by mainId) p1
+left join base_pics p2 on p1.id=p2.id) p ON p.mainId = g.id
+LEFT JOIN base_wxgoods_property wp1 ON wp1.id = ws.typesId1
+LEFT JOIN base_standard s1 ON s1.pid = wp1.property
+LEFT JOIN base_standard s11 ON s11.id = wp1.property
+LEFT JOIN base_wxgoods_property wp2 ON wp2.id = ws.typesId2
+		LEFT JOIN base_standard s2 ON s2.pid = wp2.property
+		LEFT JOIN base_standard s22 ON s2.id = wp2.property
+		LEFT JOIN base_wxgoods_property wp3 ON wp3.id = ws.typesId3
+		LEFT JOIN base_standard s3 ON s3.id = wp3.property
+		LEFT JOIN base_standard s33 ON s3.pid = wp3.property
+		WHERE  ws.id=#{stockId} and g.venderId=#{venderId}
+	and ws.isdel = 0 and g.isdel = 0
+	</select>
+
+
+	<select id="findTagsByVenderId" parameterType="String" resultType="java.util.Map">
+		SELECT
+		wt.name tagName
+		FROM
+		base_wxgoods_stock s
+		LEFT JOIN t_goods_tag t ON t.goodsid = s.goodsId
+		LEFT JOIN wx_goods_tag wt ON t.tagid = wt.id
+		WHERE s.venderId=#{_parameter}
+	</select>
+
+
+	<select id="getChangeNoticeTempByMainId" parameterType="String" resultType="com.biz.model.Pmodel.api.ChangeNoticeTemp">
+		SELECT
+			c.name as goodsName,
+			b.count,
+			d.open_id as openId
+		FROM
+			order_main a
+		LEFT JOIN order_detail b ON a.id = b.orderId
+		LEFT JOIN base_wxgoods c ON b.goodsId = c.id
+		LEFT JOIN base_user d ON a.buyUserId = d.id
+		WHERE
+			a.id = #{_parameter}
+		limit 0,1
+	</select>
+</mapper>

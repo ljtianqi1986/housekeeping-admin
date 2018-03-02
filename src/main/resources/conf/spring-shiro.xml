@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+    http://www.springframework.org/schema/beans
+    http://www.springframework.org/schema/beans/spring-beans-3.2.xsd" default-lazy-init="true">
+
+    <description>Shiro Configuration</description>
+
+    <!-- Shiro权限过滤过滤器定义 -->
+    <bean name="shiroFilterChainDefinitions" class="java.lang.String">
+        <constructor-arg>
+            <value>
+                <!-- anon表示此地址不需要任何权限即可访问 -->
+                /common/**=anon
+                /loginQT/**=anon
+                /QTMain/**=anon
+                /QT/**=anon
+                /qtGoods/**=anon
+                /api/**=anon
+                <!--退出系统-->
+                /user/toLogin** = logout
+                <!--所有的请求(除去配置的静态资源请求或请求地址为anon的请求)都要通过登录验证,如果未登录则跳到/login-->
+                /** = authc
+            </value>
+        </constructor-arg>
+    </bean>
+
+    <!-- CAS认证过滤器 -->
+    <bean id="casFilter" class="org.apache.shiro.cas.CasFilter">
+        <property name="failureUrl" value="${adminPath}login"/>
+    </bean>
+
+    <!-- 配置权限管理器 -->
+    <bean id="securityManager" class="org.apache.shiro.web.mgt.DefaultWebSecurityManager">
+        <!-- ref对应我们写的realm  MyShiro -->
+        <property name="realm" ref="myShiro"/>
+        <!-- 使用下面配置的缓存管理器 -->
+        <property name="cacheManager" ref="cacheManager"/>
+
+<!--
+        <property name="sessionManager" ref="sessionManager"></property>
+-->
+    </bean>
+
+    <!-- 配置shiro的过滤器工厂类，id- shiroFilter要和我们在web.xml中配置的过滤器一致 -->
+    <bean id="shiroFilter" class="org.apache.shiro.spring.web.ShiroFilterFactoryBean">
+        <!-- 调用我们配置的权限管理器 -->
+        <property name="securityManager" ref="securityManager"/>
+        <!-- 配置我们的登录请求地址 -->
+        <property name="loginUrl" value="/user/toHome.ac"/>
+        <!-- 配置我们在登录页登录成功后的跳转地址，如果你访问的是非/login地址，则跳到您访问的地址
+        <property name="successUrl" value="/user/toHome.ac"/>-->
+        <!-- 如果您请求的资源不再您的权限范围，则跳转到/403请求地址 -->
+        <property name="unauthorizedUrl" value="/403"/>
+
+        <property name="filters">
+            <map>
+                <entry key="cas" value-ref="casFilter"></entry>
+                <!--退出过滤器-->
+                <entry key="logout" value-ref="systemLogoutFilter" />
+            </map>
+        </property>
+        <!-- 权限配置 -->
+        <property name="filterChainDefinitions">
+            <ref bean="shiroFilterChainDefinitions"></ref>
+        </property>
+    </bean>
+
+    <bean id="systemLogoutFilter" class="com.framework.security.SystemLogoutFilter">
+    </bean>
+
+    <!-- 默认会话管理器 全局的会话信息设置成15秒,检测扫描信息间隔30秒,第三个参数就是是否开启扫描-->
+    <bean id="shiro_sessionManager"
+          class="com.framework.security.SimpleWebSessionManager">
+        <property name="globalSessionTimeout" value="15000" />
+        <property name="sessionValidationInterval" value="30000" />
+        <property name="sessionValidationSchedulerEnabled" value="true" />
+    </bean>
+
+
+    <!--单点登录-->
+    <bean id="sessionDao" class="org.apache.shiro.session.mgt.eis.MemorySessionDAO">
+
+    </bean>
+
+    <bean id="sessionManager" class="org.apache.shiro.web.session.mgt.DefaultWebSessionManager">
+        <property name="sessionDAO" ref="sessionDao"></property>
+    </bean>
+
+
+    <bean id="myShiro" class="com.framework.security.MyShiro" />
+    <bean id="cacheManager" class="org.apache.shiro.cache.MemoryConstrainedCacheManager" />
+    <bean id="lifecycleBeanPostProcessor" class="org.apache.shiro.spring.LifecycleBeanPostProcessor" />
+
+
+</beans>

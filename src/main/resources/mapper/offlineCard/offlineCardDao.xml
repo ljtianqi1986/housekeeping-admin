@@ -1,0 +1,331 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="offlineCardDao">
+
+    <select id="getCardPercentage" parameterType="String" resultType="java.util.HashMap">
+        SELECT
+        a.id,
+        ifnull(c.percentage, 0) AS percentage,
+        d.cardTotal
+        FROM
+        offline_card_90_detail a
+        LEFT JOIN offline_card_90_grant b ON a.id = b.detailId
+        LEFT JOIN offline_card_90_type c ON b.typeId = c.id
+        LEFT JOIN offline_card_90 d ON a.mainId = d. id
+        WHERE
+        a.cardCode = #{card_code}
+    </select>
+    <!-- 分页数据 所有实体卡主表 -->
+    <select id="findOfflineCardPage" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+        select a.id,a.name,a.agentId,a.userId,a.cardTotal,a.cardCount,a.cardUseCount,a.isdel,a.creatState,
+        a.batch,a.createTime,(IFNULL(f.count,0)-IFNULL(e.count,0)) as leftCount,b.agent_name,c.personName as person_name  from offline_card_90 as a
+        left join base_agent as b on a.agentId=b.agent_code
+        left join t_sys_user as c on a.userId=c.id
+        left JOIN (select IFNULL(count(a.id),0) as count ,mainId from offline_card_90_detail  a
+        inner JOIN offline_card_90_grant b on b.detailId=a.id
+        where b.isdel=0
+        GROUP BY mainId)e on e.mainId=a.id
+        left JOIN (select IFNULL(count(a.id),0) as count ,mainId from offline_card_90_detail  a
+        where  a.state not in (2,3)	GROUP BY mainId)f on f.mainId=a.id
+        where a.isdel=0
+
+        <if test="agentId != null and agentId != ''"><!-- 关键词检索 -->
+            AND a.agentId=#{agentId}
+        </if>
+        <if test="name != null and name != ''"><!-- 关键词检索 -->
+            AND a.name LIKE CONCAT(CONCAT('%', #{name}),'%')
+        </if>
+        ORDER BY a.createTime DESC
+        limit #{begin},#{rows}
+    </select>
+
+    <select id="findOfflineCardCount" parameterType="java.util.HashMap" resultType="java.lang.Integer">
+        select count(a.id)
+        from offline_card_90 as a
+        left join base_agent as b on a.agentId=b.agent_code
+        left join t_sys_user as c on a.userId=c.id
+        left JOIN (select IFNULL(count(a.id),0) as count ,mainId from offline_card_90_detail  a
+        inner JOIN offline_card_90_grant b on b.detailId=a.id
+        where b.isdel=0
+        GROUP BY mainId)e on e.mainId=a.id
+        left JOIN (select IFNULL(count(a.id),0) as count ,mainId from offline_card_90_detail  a
+        where  a.state!=2	GROUP BY mainId)f on f.mainId=a.id
+        where a.isdel=0
+        <if test="agentId != null and agentId != ''"><!-- 关键词检索 -->
+            AND a.agentId=#{agentId}
+        </if>
+        <if test="name != null and name != ''"><!-- 关键词检索 -->
+            AND a.name LIKE CONCAT(CONCAT('%', #{name}),'%')
+        </if>
+    </select>
+
+
+    <!--获取某个具体类型信息-->
+    <select id="getCardById" parameterType="String" resultType="com.biz.model.Pmodel.offlineCard.PofflineCard">
+        select id,name,agentId,userId,cardTotal,cardCount,cardUseCount,isdel,creatState,batch,createTime
+        from offline_card_90 where id=#{id} and isdel=0
+    </select>
+
+    <!-- 查找最新序列号 -->
+    <select id="getMaxBatchNumber" resultType="java.lang.Integer">
+        select max(batch) from offline_card_90
+    </select>
+
+    <!-- 添加实体卡主表 -->
+    <insert id="insertOfflineCard" parameterType="com.biz.model.Pmodel.offlineCard.PofflineCard">
+        INSERT INTO offline_card_90(id,name,agentId,userId,cardTotal,cardCount,cardUseCount,creatState,batch)
+        VALUES (#{id},#{name},#{agentId},#{userId},#{cardTotal},#{cardCount},#{cardUseCount},#{creatState},#{batch})
+    </insert>
+
+    <!-- 添加实体卡详情表 -->
+    <insert id="insertOfflineCardDetail" parameterType="java.util.List">
+        INSERT INTO offline_card_90_detail(mainId, cardCode, cardNumber,state) values
+        <foreach collection="list" item="item" index="index" separator=",">
+            (#{item.mainId},#{item.cardCode},#{item.cardNumber}, 0)
+        </foreach>
+    </insert>
+
+
+    <!-- 更新生成状态字段 成功 -->
+    <update id="updateCreatStateOK" parameterType="String">
+        UPDATE offline_card_90 SET creatState=1 WHERE id=#{id}
+    </update>
+    <!-- 更新生成状态字段 失败 -->
+    <update id="updateCreatStateFail" parameterType="String">
+        UPDATE offline_card_90 SET creatState=2 WHERE id=#{id}
+    </update>
+
+    <!-- 码库 -->
+    <select id="excelCardDetail" parameterType="java.util.HashMap" resultType="com.biz.model.Pmodel.offlineCard.PofflineCardDetail">
+        select a.id,a.mainId,a.cardCode,a.userId,a.cardNumber,a.openId,a.state,ifnull(a.useTime,'') as useTime,a.createTime
+        ,temp.person_name ,ifnull(c.isdel,'1') as  isGrand,d.name as brandName from offline_card_90_detail as a
+        left join (select person_name,open_id from base_user where LENGTH(open_id)>0) as temp on a.openId=temp.open_id
+        LEFT  JOIN  offline_card_90_grant c on a.id=c.detailId
+        LEFT  JOIN  base_brand d on d.brand_code=c.brandId
+        where 1=1 and mainId=#{id}
+        ORDER BY A.useTime,A.cardNumber DESC
+    </select>
+
+    <!--未使用的码库数量-->
+    <select id="getIsNotUsedCount" parameterType="String" resultType="java.lang.Integer">
+    select (ifnull(count(1),0)-ifnull(b.s,0)) as s from offline_card_90_detail a
+       LEFT JOIN(
+        select count(1) as s,a.mainId from offline_card_90_detail a
+        INNER JOIN offline_card_90_grant b on a.id=b.detailId
+        where b.isdel=0
+        GROUP BY a.mainId)b on a.mainId=b.mainId
+        where a.mainId=#{id} and  a.state not in(2,3)
+    </select>
+
+    <!--未使用的码库列表-->
+    <select id="getIsNotUsedCountList" parameterType="String" resultType="String">
+        select t.id from (
+          select a.id,ifnull(b.isdel,'1') as isGrand from offline_card_90_detail a
+          LEFT JOIN offline_card_90_grant b on convert(a.id,char)=b.detailId and b.isdel=0
+          where a.mainId=#{id} and a.state in(0,4)
+        ) t
+        where t.isGrand=1
+        order by id asc
+    </select>
+
+    <!--查询实体卡类型-->
+    <select id="getMyType" parameterType="String"  resultType="java.util.Map">
+        select id,name from offline_card_90_type where isdel=0 and agentId=#{identitycode}
+    </select>
+
+
+    <!-- 获取商户列表 -->
+    <select id="getMyBrand" parameterType="String" resultType="java.util.Map">
+        SELECT brand_code as id,name FROM base_brand WHERE agent_code=#{identitycode} and ISDEL = 0
+    </select>
+
+    <!-- 保存实体卡发放表 -->
+    <insert id="insertOfflineCardGrand" parameterType="java.util.Map">
+        insert into offline_card_90_grant (id,brandId,detailId,typeId,userId,card_notes,bizPersonId)
+        VALUES
+        <foreach collection="list" close="" index="index" item="item" open="" separator=",">
+            (#{item.id},#{item.brandId},#{item.detailId},#{item.typeId},#{item.userId},#{item.cardNotes},#{item.bizPersonId})
+        </foreach>
+    </insert>
+
+
+    <!-- 分页数据 查询码库 -->
+    <select id="getCardDetailsForPage" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.offlineCard.PofflineCardDetail">
+        select
+        a.id,a.mainId,a.cardCode,a.userId,a.cardNumber,a.openId,a.state,a.useTime,a.createTime,
+        cc.name as typeName,temp.person_name,ifnull(c.isdel,'1') as  isGrand,d.name as brandName
+        from offline_card_90_detail as a
+        left join (select person_name,open_id from base_user where open_id!='') as temp on a.openId=temp.open_id
+        LEFT  JOIN  offline_card_90_grant c on a.id=c.detailId and c.isdel=0
+        LEFT JOIN offline_card_90_type cc ON cc.id=c.typeId
+        LEFT  JOIN  base_brand d on d.brand_code=c.brandId
+        where mainId=#{id}
+        <if test="cardCode != null and cardCode != ''"><!-- 关键词检索 -->
+            AND a.cardCode  LIKE CONCAT(CONCAT('%', #{cardCode}),'%')
+        </if>
+        <if test="code != null and code != ''"><!-- 关键词检索 -->
+            AND a.cardNumber  LIKE CONCAT(CONCAT('%', #{code}),'%')
+        </if>
+        ORDER BY A.cardNumber asc
+        limit #{begin},#{rows}
+    </select>
+
+    <select id="getCardDetailsForCount" parameterType="java.util.HashMap" resultType="java.lang.Integer">
+        select count(1) as s
+        from offline_card_90_detail as a
+        where mainId=#{id}
+        <if test="cardCode != null and cardCode != ''"><!-- 关键词检索 -->
+            AND a.cardCode  LIKE CONCAT(CONCAT('%', #{cardCode}),'%')
+        </if>
+        <if test="code != null and code != ''"><!-- 关键词检索 -->
+            AND a.cardNumber  LIKE CONCAT(CONCAT('%', #{code}),'%')
+        </if>
+    </select>
+
+
+
+
+    <!-- 分页数据 查询码库 -->
+    <select id="getCardGrandForPage" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.offlineCard.PofflineCardDetail">
+        select
+        a.id,a.mainId,a.cardCode,a.userId,a.cardNumber,a.openId,a.state,a.useTime,a.createTime,
+        cc.name as typeName,temp.person_name,ifnull(c.isdel,'1') as  isGrand,d.name as brandName,
+        c.card_notes as cardNotes,e.person_name as bizPersonName
+        from offline_card_90_detail as a
+        left join (select person_name,open_id from base_user where open_id!='') as temp on a.openId=temp.open_id
+        LEFT  JOIN  offline_card_90_grant c on a.id=c.detailId and c.isdel=0
+        LEFT JOIN offline_card_90_type cc ON cc.id=c.typeId
+        LEFT  JOIN  base_brand d on d.brand_code=c.brandId
+        LEFT JOIN base_biz_person e on e.code=c.bizPersonId
+        where mainId=#{id}
+        and c.id is not null
+        <if test="cardCode != null and cardCode != ''"><!-- 关键词检索 -->
+            AND a.cardCode  LIKE CONCAT(CONCAT('%', #{cardCode}),'%')
+        </if>
+        <if test="cardNumber != null and cardNumber != ''"><!-- 关键词检索 -->
+            AND a.cardNumber  LIKE CONCAT(CONCAT('%', #{cardNumber}),'%')
+        </if>
+        ORDER BY a.cardNumber desc,c.createTime desc
+        limit #{begin},#{rows}
+    </select>
+
+    <select id="getCardGrandForCount" parameterType="java.util.HashMap" resultType="java.lang.Integer">
+        select
+            count(1)
+        from offline_card_90_detail as a
+        left join (select person_name,open_id from base_user where open_id!='') as temp on a.openId=temp.open_id
+        LEFT  JOIN  offline_card_90_grant c on a.id=c.detailId and c.isdel=0
+        LEFT JOIN offline_card_90_type cc ON cc.id=c.typeId
+        LEFT  JOIN  base_brand d on d.brand_code=c.brandId
+        where mainId=#{id}
+        and c.id is not null
+        <if test="cardCode != null and cardCode != ''"><!-- 关键词检索 -->
+            AND a.cardCode  LIKE CONCAT(CONCAT('%', #{cardCode}),'%')
+        </if>
+        <if test="cardNumber != null and cardNumber != ''"><!-- 关键词检索 -->
+            AND a.cardNumber  LIKE CONCAT(CONCAT('%', #{cardNumber}),'%')
+        </if>
+    </select>
+
+    <update id="doCancellation" parameterType="String">
+        UPDATE offline_card_90_detail set state=3 where state!='1' and id in (${_parameter})
+    </update>
+
+    <update id="doBackList" parameterType="String">
+        UPDATE offline_card_90_detail set state=4,openId='' where state='0' and id in (${_parameter})
+    </update>
+
+    <select id="getPofflineCardDetail" parameterType="String" resultType="com.biz.model.Pmodel.offlineCard.PofflineCardDetail">
+        SELECT a.*,b.cardTotal from offline_card_90_detail a
+LEFT JOIN offline_card_90 b on b.id=a.mainId
+where a.id=#{_parameter}
+    </select>
+
+    <select id="getOrder_code" parameterType="String" resultType="String">
+        SELECT b.id from offline_card_90_detail a
+        LEFT JOIN base_90_detail b on a.cardCode=b.sourceId
+        where a.cardCode=#{_parameter}
+    </select>
+<update id="updateState" parameterType="String">
+     UPDATE offline_card_90_detail set state=2 where id=#{_parameter}
+</update>
+
+ <update id="updateGrantState" parameterType="String">
+UPDATE offline_card_90_grant set isdel=1 where detailId in (${_parameter})
+ </update>
+
+    <update id="updateDetailState" parameterType="String">
+        UPDATE offline_card_90_detail set state=0 where id=#{_parameter}
+    </update>
+
+
+    <!-- 分页数据 查询码库 -->
+    <select id="showLoadCard" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.offlineCard.PofflineCardDetail">
+        SELECT a.* from(select
+        a.id,a.cardCode,a.cardNumber,a.state,a.createTime,
+        ifnull(c.isdel,'1') as  isGrand
+        from offline_card_90_detail as a
+        LEFT  JOIN  offline_card_90_grant c on convert(a.id,char)=c.detailId and c.isdel=0
+        where mainId=#{id} and a.state in (0,4)
+        <if test="beginNum!=null and beginNum !='' ">
+            and a.cardNumber>=#{beginNum}
+        </if>
+        <if test="endNum!=null and endNum !='' ">
+            and a.cardNumber &lt;=#{endNum}
+        </if>
+        <if test="cardCode != null and cardCode != ''"><!-- 关键词检索 -->
+            AND a.cardCode  LIKE CONCAT(CONCAT('%', #{cardCode}),'%')
+        </if>
+        <if test="code != null and code != ''"><!-- 关键词检索 -->
+            AND a.cardNumber  LIKE CONCAT(CONCAT('%', #{code}),'%')
+        </if>
+        ORDER BY A.cardNumber asc)a
+        where a.isGrand=1
+        limit #{begin},#{rows}
+    </select>
+
+    <select id="showLoadCardCount" parameterType="java.util.HashMap" resultType="java.lang.Integer">
+        SELECT count(1) from(select
+        a.id,a.cardCode,a.cardNumber,a.state,a.createTime,
+        ifnull(c.isdel,'1') as  isGrand
+        from offline_card_90_detail as a
+        LEFT  JOIN  offline_card_90_grant c on convert(a.id,char)=c.detailId and c.isdel=0
+        where mainId=#{id} and a.state in (0,4)
+        <if test="beginNum!=null and beginNum !='' ">
+            and a.cardNumber>=#{beginNum}
+        </if>
+        <if test="endNum!=null and endNum !='' ">
+            and a.cardNumber &lt;=#{endNum}
+        </if>
+        <if test="cardCode != null and cardCode != ''"><!-- 关键词检索 -->
+            AND a.cardCode  LIKE CONCAT(CONCAT('%', #{cardCode}),'%')
+        </if>
+        <if test="code != null and code != ''"><!-- 关键词检索 -->
+            AND a.cardNumber  LIKE CONCAT(CONCAT('%', #{code}),'%')
+        </if>
+        ORDER BY A.cardNumber asc)a
+        where a.isGrand=1
+    </select>
+
+    <select id="loadCardInterval" parameterType="String" resultType="java.util.Map">
+SELECT max(a.cardNumber) as maxNum,min(a.cardNumber) as minNum from(select
+        a.id,a.cardCode,a.cardNumber,a.state,a.createTime,
+        ifnull(c.isdel,'1') as  isGrand
+        from offline_card_90_detail as a
+        LEFT  JOIN  offline_card_90_grant c on convert(a.id,char)=c.detailId and c.isdel=0
+        where mainId=#{id} and a.state in (0,4)
+				and a.id
+ ORDER BY A.cardNumber asc)a
+where a.isGrand=1
+    </select>
+
+
+    <select id="getCreateTimeByCardCode" parameterType="String" resultType="String">
+        SELECT  date_format(a.createTime,'%Y-%m-%d %H:%i:%s') FROM offline_card_90_grant a
+        LEFT JOIN offline_card_90_detail b on b.id=a.detailId
+        where b.cardCode=#{sourceId} and a.isdel=0
+    </select>
+</mapper>

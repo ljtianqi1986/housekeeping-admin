@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="WxflowerSettingDao">
+	
+
+	<insert id="saveTag" parameterType="com.biz.model.Pmodel.basic.Ptag">
+		insert into wx_goods_tag (id,name,state,createTime,isdel,shopid,num) values(#{id},#{name},0,now(),0,#{shopid},0)
+	</insert>
+	<insert id="saveGroup" parameterType="com.biz.model.Pmodel.basic.Pgroup">
+		insert into wx_goods_group (id,name,state,createTime,isdel,shopid,isTicket,icon) values(#{id},#{name},0,now(),0,#{shopid},0,#{icon});
+	</insert>
+	<select id="getTagGroup" parameterType="java.util.Map" resultType="String">
+		select id from t_tag_group where tagid=#{tag} and groupid=#{group} and isdel=0
+	</select>
+	<insert id="saveTagGroup" parameterType="java.util.Map">
+		insert into t_tag_group (id,tagid,groupid,isdel,createTime) values(#{id},#{tag},#{group} ,0,now())
+	</insert>
+<insert id="saveGoodsPics" parameterType="com.biz.model.Pmodel.basic.Ppics">
+	insert into base_pics (id,mainType,path,size,isdel) values(#{id},#{mainType},#{path},0,0)
+
+</insert>
+	<insert id="saveStandardForInterface" parameterType="java.util.Map">
+		insert into base_standard (id,name,pid,shopId,isdel,createTime,type) values
+		<foreach collection="list" close="" index="index" item="item" open="" separator=",">
+			(#{item.id},#{item.name},#{item.pid},#{item.shopId},0,now(),1)
+		</foreach>
+
+
+	</insert>
+
+
+	<update id="updateCleanPic" parameterType="java.util.Map">
+		update base_pics set mainId='' where mainId=#{id}
+	</update>
+</mapper>

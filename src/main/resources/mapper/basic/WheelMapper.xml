@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="WheelMapper">
+
+    <select id="findWheelRecordPage" parameterType="com.framework.model.Params" resultType="com.biz.model.Pmodel.basic.PwxWheelRecord">
+        SELECT
+        a.id,
+        a.userid,
+        a.openid,
+        b.person_name as userName,
+        a.wheelName,
+        a.level,
+        a.num90,
+        a.qishu,
+        a.state,
+        DATE_FORMAT(
+        a.createTime,
+        '%Y-%m-%d %H:%i:%s'
+        ) AS createTime
+        FROM
+        wx_wheel_record a
+        LEFT JOIN base_user b on b.open_id=a.openid
+        where 1=1
+        <if test="parm.qishu!=null and parm.qishu!=''">
+        and a.qishu=#{parm.qishu}
+        </if>
+        <if test="parm.level!=null and parm.level!=''">
+            and a.level=#{parm.level}
+        </if>
+        <if test="parm.userName!=null and parm.userName!=''">
+         and  a.userName like concat('%',#{parm.userName},'%')
+        </if>
+        ORDER BY a.createTime DESC
+        limit ${page},${rows}
+    </select>
+    <select id="countWheelRecord" parameterType="com.framework.model.Params" resultType="com.biz.model.Pmodel.basic.PwxWheelRecord">
+        SELECT
+        a.id
+        FROM
+        wx_wheel_record a
+        LEFT JOIN base_user b on b.open_id=a.openid
+        where 1=1
+        <if test="parm.qishu!=null and parm.qishu!=''">
+            and a.qishu=#{parm.qishu}
+        </if>
+        <if test="parm.userName!=null and parm.userName!=''">
+            and  a.userName like concat('%',#{parm.userName},'%')
+        </if>
+    </select>
+
+    <select id="getWheelInfo" resultType="com.biz.model.Pmodel.basic.PwxWheelMain">
+        select id,
+        name,
+        date_format(startTime,'%Y-%m-%d %H:%i:%s') as startTime,
+        date_format(endTime,'%Y-%m-%d %H:%i:%s') as endTime,
+        state,
+        qishu,
+        date_format(createTime,'%Y-%m-%d %H:%i:%s') as createTime
+        from wx_wheel_main
+    </select>
+
+    <select id="getFreightSetting" resultType="java.util.Map">
+        select * from t_freight_setting LIMIT 0,1
+    </select>
+    <update id="updateFreight" parameterType="java.util.Map">
+        UPDATE t_freight_setting set startTime =#{startTime},endTime=#{endTime} where id='dqwer342232dsad23e'
+    </update>
+    <select id="getWheelList" resultType="com.biz.model.Pmodel.basic.PwxWheel">
+        select * from wx_wheel order by level asc
+    </select>
+    <delete id="clearWheel">
+        DELETE FROM wx_wheel
+    </delete>
+
+    <select id="getNowQishu" resultType="String">
+        select qishu from wx_wheel_main limit 1
+    </select>
+</mapper>

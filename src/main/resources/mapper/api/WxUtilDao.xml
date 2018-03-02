@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="WxUtilDao">
+	<!--获取token-->
+	<select id="getWxTicketById" parameterType="String" resultType="java.util.HashMap">
+		SELECT * FROM a_wx_ticket limit 1
+	</select>
+
+	<insert id="saveAccessToken" parameterType="java.util.HashMap">
+		insert into a_wx_ticket (id,ACCESS_TOKEN,JSAPI_TICKET,KQAPI_TICKET,createTime)
+		values (
+		#{id},#{ACCESS_TOKEN},#{JSAPI_TICKET},#{KQAPI_TICKET},now()
+		)
+	</insert>
+
+	<update id="updateAccessToken" parameterType="java.util.HashMap">
+		UPDATE a_wx_ticket set ACCESS_TOKEN = #{ACCESS_TOKEN}
+		where id = #{id}
+	</update>
+
+
+	<update id="updateJsApiToken" parameterType="java.util.HashMap">
+		UPDATE a_wx_ticket set
+		JSAPI_TICKET=#{JSAPI_TICKET}
+		where id = #{id}
+	</update>
+</mapper>

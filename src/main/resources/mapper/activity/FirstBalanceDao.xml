@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="FirstBalanceDao">
+
+
+    <!-- 新增关注送券规则 -->
+    <insert id="insertFirstBalance" parameterType="com.biz.model.Pmodel.PfirstBalance">
+        insert into t_first_balance (id,balance_90,activityId,userid,ticketType)
+        values(#{id},#{balance_90},#{activityId},#{userid},#{ticketType})
+    </insert>
+
+    <update id="updateFirstBalance" parameterType="com.biz.model.Pmodel.PfirstBalance">
+        update t_first_balance set balance_90=#{balance_90},ticketType=#{ticketType}
+        where id=#{id}
+    </update>
+
+    <!-- 查看规则 -->
+    <select id="getfirstBalanceList" resultType="com.biz.model.Pmodel.PfirstBalance" parameterType="java.util.HashMap">
+        select id,balance_90,isdel,create_time,activityId,ticketType from t_first_balance where isdel=0 and activityId=#{id}
+    </select>
+
+    <!-- 查询当前关注增加积分数 -->
+    <select id="getfirstBalance"  resultType="com.biz.model.Pmodel.PfirstBalance">
+        SELECT id,balance_90,isdel,create_time from t_first_balance where isdel=0 order by create_time desc limit 1
+    </select>
+
+    <!-- 查询所有开启活动的积分规则 -->
+    <select id="getfirstBalanceMapList"  resultType="com.biz.model.Pmodel.PfirstBalance" parameterType="java.util.HashMap">
+       select id,balance_90,isdel,create_time from t_first_balance where id in (${mapidList})
+    </select>
+	
+</mapper>

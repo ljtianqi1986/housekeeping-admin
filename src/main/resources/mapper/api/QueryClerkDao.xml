@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="QueryClerkDao">
+
+    <!-- 根据shop查询收银员 -->
+    <select id="queryClerkByShopWithPhone" parameterType="String" resultType="java.util.HashMap">
+        SELECT id as user_code,personName,phone,islock FROM t_SYS_USER WHERE IDENTITY_CODE = #{shop_id} AND TYPE = 2 AND ISDEL = 0
+    </select>
+
+    <select id="findLoginName" parameterType="String" resultType="int">
+        SELECT COUNT(id) FROM t_SYS_USER WHERE ISDEL = 0  AND LOGINNAME = #{login_name}
+    </select>
+
+    <select id="getUserCountByPhone" parameterType="String" resultType="int">
+        SELECT COUNT(A.id) FROM t_SYS_USER A
+        WHERE A.PHONE=#{phone} AND ISDEL=0 AND IDENTITY=4
+    </select>
+
+    <insert id="insertShopUser" parameterType="com.biz.model.Pmodel.User">
+        INSERT INTO	t_SYS_USER(id,LOGINNAME,PWD,PERSONNAME,PHONE,EMAIL,NOTES,IDENTITY,IDENTITY_CODE,type)
+        VALUES (#{user_code},#{login_name},#{pwd},#{person_name},#{phone},#{email},#{notes},#{identity},#{identity_code},#{type})
+    </insert>
+
+    <!-- 修改 -->
+    <update id="updateUserLock" parameterType="com.biz.model.Pmodel.User">
+        UPDATE t_SYS_USER SET ISLOCK=#{islock} WHERE id=#{user_code}
+    </update>
+
+    <!-- 删除 -->
+    <update id="delUserByCode" parameterType="String">
+        UPDATE t_SYS_USER SET ISDEL=1 WHERE id=#{user_code}
+    </update>
+
+    <!-- 获取 -->
+    <select id="getUserByCode" parameterType="String" resultType="com.biz.model.Pmodel.User">
+        SELECT A.* FROM t_SYS_USER A
+        WHERE A.id=#{user_code} AND A.ISDEL=0
+    </select>
+
+    <!-- 更新门店收银员手机号 -->
+    <update id="updateUserPhone"  parameterType="com.biz.model.Pmodel.User">
+        UPDATE t_SYS_USER SET PHONE=#{phone} WHERE id=#{id}
+    </update>
+    <update id="updateBaseUserPhone"  parameterType="com.biz.model.Pmodel.User">
+        UPDATE base_user SET phone=#{phone} WHERE id=#{id}
+    </update>
+
+    <!-- 修改用户密码 -->
+    <update id="updateUserPwd" parameterType="com.biz.model.Pmodel.User">
+        UPDATE t_SYS_USER SET PWD=#{pwd}  WHERE id=#{user_code}
+    </update>
+
+    <!-- 获取 -->
+    <select id="getOrderMain90ByCode" parameterType="String" resultType="com.biz.model.Pmodel.api.OrderMain90">
+        SELECT * FROM order_main_90 WHERE code=#{code} and ISDEL = 0
+    </select>
+
+    <select id="getSysUserIdByOpenId" parameterType="java.lang.String" resultType="java.lang.String">
+        select id from t_sys_user where openId=#{openid}
+    </select>
+
+    <!-- 添加 -->
+    <insert id="insertOrderMain90" parameterType="com.biz.model.Pmodel.api.OrderMain90"  useGeneratedKeys="true" keyProperty="code">
+        INSERT INTO	order_main_90(code,order_total,cash_total,cash_payType,card_total,card_count,open_id,user_code,shop_code,brand_code,state,pay_time,back_code,back_time,back_user_code,error_pay_msg,trade_type,gift_90,pay_90,pay_type,pay_user_id,other_order_code)
+        VALUES (#{code},#{order_total},#{cash_total},#{cash_payType},#{card_total},#{card_count},#{open_id},#{user_code},#{shop_code},#{brand_code},#{state},#{pay_time},#{back_code},#{back_time},#{back_user_code},#{error_pay_msg},#{trade_type},#{gift_90},#{pay_90},#{pay_type},#{pay_user_id},#{other_order_code})
+    </insert>
+
+    <!-- 获取 -->
+    <select id="getBaseUserByOpen_id" parameterType="String" resultType="com.biz.model.Pmodel.api.BaseUser">
+        <!--SELECT * FROM base_user WHERE open_id=#{open_id} and ISDEL = 0-->
+        SELECT u1.id as userid,IFNULL(c.giveAmount,0) as giveAmount,u.* FROM base_user u
+        left join (select id,openId from t_sys_user where isdel=0)u1 on u1.openId=u.open_id
+        left join t_user_coin c on c.userId=u1.id
+        WHERE u.open_id=#{open_id} and u.ISDEL = 0
+    </select>
+</mapper>

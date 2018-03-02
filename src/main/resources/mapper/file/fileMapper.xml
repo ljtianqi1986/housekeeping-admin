@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="fileDao">
+	
+	<!-- 通过文件类型加载文件的标签 -->
+	<select id="findFileLabel" parameterType="java.lang.String" resultType="com.biz.model.Pmodel.PfileLabel">
+		SELECT
+			a.*
+		FROM
+			t_file_label a
+		LEFT JOIN t_file_type_label b ON a.id = b.fileLabelId
+		WHERE a.state=0
+		<if test="fileType != null and fileType != ''"><!-- 关键词检索 -->
+			AND b.fileTypeId = #{fileType}
+		</if>
+		order by a.labelSort asc
+	</select>
+	
+</mapper>

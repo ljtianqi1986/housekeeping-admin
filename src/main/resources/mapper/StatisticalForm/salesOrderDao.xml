@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="salesOrderDao">
+
+    <!--导购员合计统计-->
+    <select id="getSalesOrderList" parameterType="java.util.Map"
+            resultType="com.biz.model.Pmodel.StatisticalForm.PsalesOrder">
+        select m.cash_total,m.order_total,m.payCoupon,m.coinPayTotal,m.salesUserCode,m.orderCount,s.name as
+        salesName,s.phone as salesPhone,m.payCouponJL,m.payCouponLG,m.payCouponTY from
+        base_sales s left join (
+        select sum(ifnull(servicePayTotal,0)) as cash_total,sum(ifnull(payTotal,0)) as order_total,sum(ifnull(payCoupon,0)) as payCoupon,sum(ifnull(coinPayTotal,0)) as coinPayTotal,salesUserCode,count(1) as
+        orderCount,
+        ROUND(sum(ifnull(balance_90,0)),2) as payCouponJL,
+        ROUND(sum(ifnull(balance_shopping_90,0)),2)as payCouponLG,
+        ROUND(sum(ifnull(balance_experience_90,0)),2)as payCouponTY
+
+        from order_main where
+        (LENGTH(salesUserCode)>0 and salesUserCode &lt;&gt;'-1')
+        <if test="start_time!=null and start_time!='' and end_time!=null and end_time!=''">
+            and (createTime BETWEEN #{start_time} and #{end_time})
+        </if>
+        and state in (1,2)
+        group by salesUserCode
+        ) m on m.salesUserCode=s.id
+        where s.isdel=0
+        order by m.payCoupon DESC
+        limit #{begin},#{rows}
+    </select>
+
+    <select id="getSalesOrderCount" resultType="java.lang.Integer" parameterType="java.util.HashMap" >
+        select count(1) from base_sales where isdel=0
+    </select>
+
+    <select id="findSalesOrderList" parameterType="java.util.Map"
+            resultType="com.biz.model.Pmodel.StatisticalForm.PsalesOrder">
+        select m.cash_total,m.order_total,m.payCoupon,m.coinPayTotal,m.salesUserCode,m.orderCount,s.name as
+        salesName,s.phone as salesPhone,m.payCouponJL,m.payCouponLG,m.payCouponTY from
+        base_sales s left join (
+        select sum(ifnull(servicePayTotal,0)) as cash_total,sum(ifnull(payTotal,0)) as order_total,sum(ifnull(payCoupon,0)) as payCoupon,sum(ifnull(coinPayTotal,0)) as coinPayTotal,salesUserCode,count(1) as
+        orderCount,
+        ROUND(sum(ifnull(balance_90,0)),2) as payCouponJL,
+        ROUND(sum(ifnull(balance_shopping_90,0)),2)as payCouponLG,
+        ROUND(sum(ifnull(balance_experience_90,0)),2)as payCouponTY
+
+        from order_main where
+        (LENGTH(salesUserCode)>0 and salesUserCode !='-1')
+        <if test="start_time!=null and start_time!='' and end_time!=null and end_time!=''">
+            and (createTime BETWEEN #{start_time} and #{end_time})
+        </if>
+        and state in (1,2)
+        group by salesUserCode
+        ) m on m.salesUserCode=s.id
+        where s.isdel=0
+        order by m.payCoupon DESC
+    </select>
+
+    <!--导购员订单明细-->
+    <select id="getSalesOrderMX" parameterType="java.util.Map"
+            resultType="com.biz.model.Pmodel.StatisticalForm.POrderInfo">
+        select m.code,m.createTime,m.servicePayTotal as cash_total,m.payTotal as
+        order_total,m.payCoupon,m.coinPayTotal,m.salesUserCode,s.name as salesName,s.phone as salesPhone,
+        ROUND(ifnull(m.balance_90,0),2) as payCouponJL,
+        ROUND(ifnull(m.balance_shopping_90,0),2)as payCouponLG,
+        ROUND(ifnull(m.balance_experience_90,0),2)as payCouponTY
+        from order_main m
+        left join base_sales s on m.salesUserCode=s.id
+        where(LENGTH(m.salesUserCode)>0 and m.salesUserCode &lt;&gt;'-1')
+        <if test="start_time!=null and start_time!='' and end_time!=null and end_time!=''">
+            and (m.createTime BETWEEN #{start_time} and #{end_time})
+        </if>
+        <if test="ids!=null and ids!=''">
+            and m.salesUserCode in (${ids})
+        </if>
+        and m.state in (1,2)
+        order by m.createTime
+    </select>
+
+    <select id="getSalesOrderMXCount" resultType="java.lang.Integer" parameterType="java.util.HashMap" >
+        select count(1)
+        from order_main m
+         where(LENGTH(m.salesUserCode)>0 and m.salesUserCode &lt;&gt;'-1')
+        <if test="start_time!=null and start_time!='' and end_time!=null and end_time!=''">
+            and (m.createTime BETWEEN #{start_time} and #{end_time})
+        </if>
+        <if test="ids!=null and ids!=''">
+            and m.salesUserCode in (${ids})
+        </if>
+        and m.state in (1,2)
+        order by m.createTime
+    </select>
+
+</mapper>

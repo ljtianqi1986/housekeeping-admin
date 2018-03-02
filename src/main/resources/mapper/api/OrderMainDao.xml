@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="OrderMainDao">
+	<!-- 联盟商户发劵记录  -->
+	<select id="phone_90Record" parameterType="java.util.HashMap" resultType="com.biz.model.Pmodel.api.Record90Detail">
+		SELECT
+			b.personName AS clerk_name,
+			DATE_FORMAT(z.create_time,'%Y-%m-%d %H:%i:%S') as create_time,
+			z.source,
+			z.point_90,
+			c.person_name AS receive_name
+		FROM
+			(
+				SELECT
+					a.userCode,
+					a.openId,
+					a.createTime AS create_time,
+					a.source,
+					a.point90 AS point_90
+				FROM
+					base_90_detail AS a
+				WHERE
+					a.shopId=#{code}
+				AND a.isdel = 0
+				AND a.source IN (1, 2)
+				ORDER BY
+					a.createTime DESC
+				<if test="pageNum != null and pageSize != null ">
+					LIMIT #{pageNum},#{pageSize}
+				</if>
+			) AS z
+		LEFT JOIN t_sys_user AS b ON z.userCode = b.id
+		LEFT JOIN base_user AS c ON z.openId = c.open_id
+		ORDER BY
+			z.create_time DESC
+	</select>
+
+	<!-- 联盟商户发劵记录  -->
+	<select id="phone_90RecordCount" parameterType="java.util.HashMap" resultType="int">
+		select count(1) as total
+		from base_90_detail as a
+		where a.shopId=#{code}
+		and a.isdel=0 and a.source in(1,2)
+	</select>
+
+	<update id="changeOrderState" parameterType="java.util.Map">
+
+		UPDATE order_detail a LEFT JOIN order_main b on a.orderId=b.id
+		set a.state=#{state},a.isPayCoupons=1 where b.code=#{id}
+	</update>
+
+	<update id="changeMainState" parameterType="java.util.Map">
+		UPDATE order_detail a LEFT JOIN order_main b on a.orderId=b.id
+		set b.state=1 where b.code=#{id}
+	</update>
+
+	<!-- 获取 -->
+	<select id="getOrderMain90ByCode" parameterType="String" resultType="com.biz.model.Pmodel.api.OrderMain90">
+		SELECT * FROM order_main_90 WHERE code=#{code} and ISDEL = 0
+	</select>
+
+	<!-- 获取 -->
+	<select id="getShopBySid" parameterType="String" resultType="com.biz.model.Pmodel.api.Shop">
+		SELECT S.*
+		FROM BASE_SHOP S
+		WHERE S.ISDEL = 0 AND S.SID = #{sid}
+	</select>
+
+	<select id="getSysUserIdByOpenId" parameterType="java.lang.String" resultType="java.lang.String">
+		select id from base_user where open_id=#{openid}
+	</select>
+
+	<select id="getBalanceByOrderNum" parameterType="java.lang.String" resultType="java.lang.Double">
+		select sum(amount) as amount from balance_sheet where orderNum=#{orderNum} and source=2
+	</select>
+
+	<!-- 更新某个字段  -->
+	<update id="updateWhereOrderMain90" parameterType="java.util.Map">
+		UPDATE order_main_90
+		<set>
+			<if test="order_total != null and order_total != ''"><!-- 订单应支付额 -->
+				order_total = #{order_total},
+			</if>
+			<if test="cash_total != null and cash_total != ''"><!-- 服务费支付金额 -->
+				cash_total = #{cash_total},
+			</if>
+			<if test="card_total != null and card_total != ''"><!-- 优惠券产生的优惠金额 -->
+				card_total = #{card_total},
+			</if>
+			<if test="card_count != null and card_count != ''"><!-- 所用优惠券张数 -->
+				card_count = #{card_count},
+			</if>
+			<if test="open_id != null and open_id != ''"><!-- 个人open_id -->
+				open_id = #{open_id},
+			</if>
+			<if test="user_code != null and user_code != ''"><!-- 营业员 -->
+				user_code = #{user_code},
+			</if>
+			<if test="shop_code != null and shop_code != ''"><!-- 门店主键 -->
+				shop_code = #{shop_code},
+			</if>
+			<if test="brand_code != null and brand_code != ''"><!-- 品牌主键 -->
+				brand_code = #{brand_code},
+			</if>
+			<if test="state != null and state != ''"><!-- 0:未生效1:交易成功2:错误3:已退款 -->
+				state = #{state},
+			</if>
+			<if test="pay_time != null and pay_time != ''"><!-- 支付时间 -->
+				pay_time = #{pay_time},
+			</if>
+			<if test="back_code != null and back_code != ''"><!-- 退款单号 -->
+				back_code = #{back_code},
+			</if>
+			<if test="back_time != null and back_time != ''"><!-- 退款时间 -->
+				back_time = #{back_time},
+			</if>
+			<if test="back_user_code != null and back_user_code != ''"><!-- 退款操作人 -->
+				back_user_code = #{back_user_code},
+			</if>
+			<if test="error_pay_msg != null and error_pay_msg != ''"><!-- 错误信息 -->
+				error_pay_msg = #{error_pay_msg},
+			</if>
+			<if test="trade_type != null and trade_type != ''"><!-- 支付类型 MICROPAY:刷卡支付 NATIVE:扫码支付 JSAPI:公众号支付 -->
+				trade_type = #{trade_type},
+			</if>
+			<if test="gift_90 != null and gift_90 != ''"><!-- 赠送的90券 -->
+				gift_90 = #{gift_90},
+			</if>
+			<if test="pay_90 != null and pay_90 != ''"><!-- 消费的久零券额 -->
+				pay_90 = #{pay_90},
+			</if>
+			<if test="pay_type != null and pay_type != ''"><!-- 0:未知 1：微信 2：支付宝 3：易支付 4:银联卡 -->
+				pay_type = #{pay_type},
+			</if>
+			<if test="pay_user_id != null and pay_user_id != ''"><!-- 微信的open_id/支付宝的id/翼支付的id -->
+				pay_user_id = #{pay_user_id},
+			</if>
+			<if test="isdel != null and isdel != ''"><!-- 删除标志0：未删除，1：删除 -->
+				isdel = #{isdel},
+			</if>
+			<if test="order_type != null and order_type != ''"><!-- 类型 -->
+				order_type = #{order_type},
+			</if>
+			<if test="create_time != null and create_time != ''"><!-- 创建时间 -->
+                oldcreate_time = create_time,create_time = #{create_time},
+			</if>
+		</set>
+		WHERE code=#{code} and isdel=0
+	</update>
+
+
+
+
+	<!--用券张数-->
+	<select id="checkNum" parameterType="java.util.Map" resultType="int">
+		select count(1) num_90 from base_90_detail where 1=1 and source in(1,2)
+		<if test="time_type == 1">
+			and date(createTime) = curdate()
+		</if>
+		<if test="time_type == 0">
+			and date(createTime) = curdate()-1
+		</if>
+		<if test="shop_id != '' and shop_id!=null">
+			and shopId = #{shop_id}
+		</if>
+		and isdel = 0
+	</select>
+
+
+	<!--用券金额-->
+	<select id="checkMoneyNum" parameterType="java.util.Map" resultType="double">
+		select ifnull(sum(point90)/100,0) as total_90 from base_90_detail where 1=1 and source in(1,2)
+		<if test="time_type == 1">
+			and date(createTime) = curdate()
+		</if>
+		<if test="time_type == 0">
+			and date(createTime) = curdate()-1
+		</if>
+		<if test="shop_id != '' and shop_id!=null">
+			and shopId = #{shop_id}
+		</if>
+		and ISDEL = 0
+	</select>
+
+
+	<!--收银（笔）-->
+	<select id="collectNum" parameterType="java.util.Map" resultType="int">
+		SELECT count(code) FROM order_main_union WHERE 1=1
+		<if test="time_type == 1">
+			and date(create_time) = curdate()
+		</if>
+		<if test="time_type == 0">
+			and date(create_time) = curdate()-1
+		</if>
+		<if test="shop_id != '' and shop_id!=null">
+			and shop_code = #{shop_id}
+		</if>
+		and ISDEL = 0 and state=1
+	</select>
+
+	<!--收银金额 -->
+	<select id="collectMoneyNum" parameterType="java.util.Map" resultType="double">
+		SELECT ifnull(sum(cash_total)/100,0) FROM order_main_union WHERE 1=1
+		<if test="time_type == 1">
+			and date(create_time) = curdate()
+		</if>
+		<if test="time_type == 0">
+			and date(create_time) = curdate()-1
+		</if>
+		<if test="shop_id != '' and shop_id!=null">
+			and shop_code = #{shop_id}
+		</if>
+		and ISDEL = 0 and state=1
+	</select>
+
+	<!--90劵余额-->
+	<select id="getBalance_90" parameterType="java.util.Map" resultType="int">
+		select ifnull(b.balance_90,0) as balance_90 from base_shop as a
+		LEFT JOIN base_brand as b on a.brand_code=b.brand_code
+		where a.sid=#{shop_id}
+	</select>
+	<!--90劵余额-->
+	<select id="getBalance_90Shop" parameterType="java.util.Map" resultType="int">
+		select ifnull(b.balance_90_shop,0) as balance_90_shop from base_shop as a
+		LEFT JOIN base_brand as b on a.brand_code=b.brand_code
+		where a.sid=#{shop_id}
+	</select>
+	<!--90劵余额-->
+	<select id="getBalance_90Experience" parameterType="java.util.Map" resultType="int">
+		select ifnull(b.balance_90_experience,0) as balance_90_experience from base_shop as a
+		LEFT JOIN base_brand as b on a.brand_code=b.brand_code
+		where a.sid=#{shop_id}
+	</select>
+
+    <select id="queryDetailVoucherList" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.api.DetailVoucher">
+        SELECT t.*,b.name as brand_name,c.agent_name FROM voucher_detail t
+        left join base_brand b on b.brand_code = t.brand_code
+        left join base_agent c on b.agent_code = c.agent_code
+        WHERE 1=1
+        <if test="code != null and code != ''">
+            AND t.voucher_code LIKE CONCAT(CONCAT('%', #{code}),'%')<!--订单编号:关键词检索 -->
+        </if>
+        <if test="name != null and name != ''">
+            AND t.name LIKE CONCAT(CONCAT('%', #{name}),'%')<!-- 商品名称:关键词检索 -->
+        </if>
+        <if test="brand != null and brand != ''">
+            AND t.brand_code = #{brand} <!-- 商户登录 -->
+        </if>
+        <if test="agent != null and agent != ''">
+            AND b.agent_code = #{agent} <!-- 代理商登录 -->
+        </if>
+        <if test="startdate!=null and startDate!=''">
+            and t.create_time &gt; #{startdate}
+        </if>
+        <if test="endDate!=null and endDate!=''">
+            and t.create_time &lt; #{endDate}
+        </if>
+        ORDER BY t.CREATE_TIME DESC
+
+        limit #{begin},#{rows}
+    </select>
+
+    <select id="queryDetailVoucherCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+        SELECT count(1) FROM voucher_detail t
+        left join base_brand b on b.brand_code = t.brand_code
+        left join base_agent c on b.agent_code = c.agent_code
+        WHERE 1=1
+        <if test="code != null and code != ''">
+            AND t.voucher_code LIKE CONCAT(CONCAT('%', #{code}),'%')<!--订单编号:关键词检索 -->
+        </if>
+        <if test="name != null and  name != ''">
+            AND t.name LIKE CONCAT(CONCAT('%', #{name}),'%')<!-- 商品名称:关键词检索 -->
+        </if>
+        <if test="brand != null and brand != ''">
+            AND t.brand_code = #{brand} <!-- 商户登录 -->
+        </if>
+        <if test="agent != null and agent != ''">
+            AND b.agent_code = #{agent} <!-- 代理商登录 -->
+        </if>
+        <if test="startdate!=null and startDate!=''">
+            and t.create_time &gt; #{startdate}
+        </if>
+        <if test="endDate!=null and endDate!=''">
+            and t.create_time &lt; #{endDate}
+        </if>
+    </select>
+
+
+	<select id="getCreateTimeByCode" resultType="String" parameterType="String">
+		   SELECT date_format(createTime,'%Y-%m-%d %H:%i:%s') as create_time FROM order_detail WHERE id=#{sourceId} and isdel = 0
+	</select>
+
+	<select id="getWxReply" resultType="java.util.Map">
+SELECT * from wx_reply where isdel=0 order by sort
+	</select>
+
+	<update id="updateReplay">
+		update wx_reply set isdel=1
+	</update>
+	<insert id="doSaveReply" parameterType="java.util.Map">
+INSERT into wx_reply (id,title,path,url,sort) VALUES (#{id},#{title},#{path},#{url},#{sort})
+	</insert>
+
+
+</mapper>

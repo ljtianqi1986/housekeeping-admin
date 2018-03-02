@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="shopDao">
+    <!-- 分页数据 所有花店购买订单 -->
+    <select id="queryShop" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+    SELECT S.sid,S.business_name,S.logo_url,S.create_time,S.province,S.city,S.district,S.address,S.telephone,S.offset_type,
+    S.longitude,S.latitude,S.recommend,S.special,S.introduction,S.open_time,S.avg_price,S.category_first,
+    S.category_second,S.district_code,S.brand_code,S.agent_code,S.pageviews,A.agent_name,
+    B.name AS brand_name, D.district_name,s.stockName,s.stockId,s.sort,s.money_fixed,s.is_90
+    FROM BASE_SHOP S
+    LEFT JOIN BASE_BRAND B ON S.BRAND_CODE = B.BRAND_CODE
+    LEFT JOIN BASE_AGENT A ON A.AGENT_CODE = S.AGENT_CODE
+    LEFT JOIN BASE_DISTRICT D ON S.district_code = D.district_code
+    WHERE S.ISDEL = 0
+    <if test="q_name != null and q_name != ''"><!-- 关键词检索 -->
+        AND (S.business_name LIKE CONCAT(CONCAT('%', #{q_name}),'%')  or S.business_name LIKE CONCAT(CONCAT('%', #{q_name}),'%'))
+    </if>
+    <if test="agent_select!= null and agent_select!=''"><!-- 代理商 -->
+        AND S.AGENT_CODE = #{agent_select}
+    </if>
+    <if test="brand_select!= null and brand_select!=''"><!-- 品牌 -->
+        AND S.BRAND_CODE = #{brand_select}
+    </if>
+    <if test="pro_select != null and pro_select != ''">
+        AND S.province = #{pro_select}
+    </if>
+    <if test="city_select != null and city_select != ''">
+        AND S.city = #{city_select}
+    </if>
+    ORDER BY S.CREATE_TIME DESC
+        limit #{begin},#{rows}
+    </select>
+
+    <select id="queryShopCount" parameterType="java.util.HashMap" resultType="java.lang.Integer">
+        SELECT count(s.sid)
+        FROM BASE_SHOP S
+        LEFT JOIN BASE_BRAND B ON S.BRAND_CODE = B.BRAND_CODE
+        LEFT JOIN BASE_AGENT A ON A.AGENT_CODE = S.AGENT_CODE
+        LEFT JOIN BASE_DISTRICT D ON S.district_code = D.district_code
+        WHERE S.ISDEL = 0
+        <if test="q_name != null and q_name != ''"><!-- 关键词检索 -->
+            AND (S.business_name LIKE CONCAT(CONCAT('%', #{q_name}),'%')  or S.business_name LIKE CONCAT(CONCAT('%', #{q_name}),'%'))
+        </if>
+        <if test="agent_select!= null and agent_select!=''"><!-- 代理商 -->
+            AND S.AGENT_CODE = #{agent_select}
+        </if>
+        <if test="brand_select!= null and brand_select!=''"><!-- 品牌 -->
+            AND S.BRAND_CODE = #{brand_select}
+        </if>
+        <if test="pro_select != null and pro_select != ''">
+            AND S.province = #{pro_select}
+        </if>
+        <if test="city_select != null and city_select != ''">
+            AND S.city = #{city_select}
+        </if>
+        ORDER BY S.CREATE_TIME DESC
+    </select>
+
+    <!-- 查询一级类目 -->
+    <select id="queryCategoryFirst" resultType="com.biz.model.Pmodel.basic.Category">
+        SELECT * FROM BASE_CATEGORY WHERE ISDEL=0 AND CATEGORY_PARENT='0'
+        ORDER BY SORT
+    </select>
+
+    <select id="queryCategoryByParent" parameterType="String" resultType="com.biz.model.Pmodel.basic.Category">
+        SELECT * FROM BASE_CATEGORY WHERE ISDEL=0 AND CATEGORY_PARENT=#{parent_code}
+        ORDER BY SORT
+    </select>
+
+    <!-- 根据地区查询商圈 -->
+    <select id="queryDistrictByPcode" parameterType="String" resultType="com.biz.model.Pmodel.basic.Pdistrict">
+        SELECT
+        A.*,B.text as area_name
+        FROM
+        BASE_DISTRICT A
+        LEFT JOIN t_sys_area B ON A.area_code =B.id
+        WHERE
+        A.ISDEL = 0 and a.area_code=#{area_code}
+        ORDER BY CREATE_TIME DESC
+    </select>
+
+    <select id="loadBrand" parameterType="String" resultType="com.biz.model.Pmodel.basic.Brand">
+        SELECT A.* FROM BASE_BRAND A
+        WHERE A.ISDEL = 0
+    </select>
+    <select id="loadBrandByParm" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.basic.Brand">
+        SELECT A.* FROM BASE_BRAND A
+        WHERE A.ISDEL = 0
+        <if test="identity_code!=null and identity_code!=''">
+            and a.brand_code=#{identity_code}
+        </if>
+    </select>
+    <select id="getBrandByCode" parameterType="String" resultType="com.biz.model.Pmodel.basic.Brand">
+        SELECT A.* , B.CATEGORY_NAME AS category_first_name , C.CATEGORY_NAME AS category_second_name FROM BASE_BRAND A
+        LEFT JOIN BASE_CATEGORY B ON A.category_first = B.category_code
+        LEFT JOIN BASE_CATEGORY C ON A.category_second = C.category_code
+        WHERE A.ISDEL = 0 AND A.BRAND_CODE=#{code}
+    </select>
+
+    <insert id="insertShopUser" parameterType="com.biz.model.Pmodel.User">
+        INSERT INTO	T_SYS_USER(id,LOGINNAME,PWD,PERSONNAME,ROLEs,PHONE,EMAIL,NOTES,IDENTITY,IDENTITY_CODE,type)
+        VALUES (#{user_code},#{login_name},#{pwd},#{person_name},#{role_code},#{phone},#{email},#{notes},#{identity},#{identity_code},#{type})
+    </insert>
+
+    <insert id="insertShop" parameterType="com.biz.model.Pmodel.basic.Pshop">
+        INSERT INTO BASE_SHOP (SID,BUSINESS_NAME,LOGO_URL,PROVINCE,CITY,DISTRICT,ADDRESS,TELEPHONE,OFFSET_TYPE,
+        longitude,latitude,recommend,special,introduction,open_time,avg_price,category_first,
+        category_second,district_code,brand_code,agent_code,initial_money,money_fixed,
+        dxy_code,dxy_person_code,is_90,sort,stockId,stockName)
+        VALUES  (#{sid},#{business_name},#{logo_url},#{province},#{city},#{district},#{address},#{telephone},#{offset_type},
+        #{longitude},#{latitude},#{recommend},#{special},#{introduction},#{open_time},#{avg_price},#{category_first},
+        #{category_second},#{district_code},#{brand_code},#{agent_code},#{initial_money},#{money_fixed},
+        #{dxy_code},#{dxy_person_code},#{is_90},#{sort},#{stockId},#{stockName})
+    </insert>
+
+    <update id="updateShop" parameterType="com.biz.model.Pmodel.basic.Pshop">
+        UPDATE  base_shop set business_name=#{business_name},logo_url=#{logo_url},category_first=#{category_first},
+category_second=#{category_second},district=#{district},brand_code=#{brand_code},stockId=#{stockId},
+stockName=#{stockName},longitude=#{longitude},latitude=#{latitude},address=#{address},telephone=#{telephone},
+sort=#{sort},avg_price=#{avg_price},open_time=#{open_time},recommend=#{recommend},special=#{special},
+introduction=#{introduction},dxy_person_code=#{dxy_person_code},dxy_code=#{dxy_code},initial_money=#{initial_money},
+is_90=#{is_90},money_fixed=#{money_fixed},stockName=#{stockName} where sid=#{sid}
+    </update>
+    <select id="findLoginName" parameterType="String" resultType="int">
+        SELECT COUNT(id) FROM t_SYS_USER WHERE ISDEL = 0  AND LOGINNAME = #{login_name}
+    </select>
+
+    <select id="queryShopAccount" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+        SELECT * FROM t_SYS_USER
+        WHERE IDENTITY_CODE=#{sid} AND ISDEL=0
+    </select>
+    <select id="queryShopAccountCount" parameterType="java.util.HashMap" resultType="java.lang.Integer">
+        SELECT count(id) FROM t_SYS_USER
+        WHERE IDENTITY_CODE=#{sid} AND ISDEL=0
+    </select>
+
+    <update id="updatePwd" parameterType="java.util.HashMap">
+    UPDATE t_SYS_USER set pwd =#{newPwd} where id=#{user_code}
+    </update>
+
+    <update id="updatePhone" parameterType="java.util.HashMap">
+        UPDATE t_SYS_USER set phone =#{newPhone} where id=#{user_code}
+    </update>
+
+    <update id="delGridById" parameterType="String">
+ UPDATE BASE_SHOP set isdel=1 where sid=#{id}
+    </update>
+
+    <select id="getUserCountByPhone" parameterType="String" resultType="int">
+        SELECT COUNT(A.id) FROM t_SYS_USER A
+        WHERE A.PHONE=#{phone} AND ISDEL=0 AND IDENTITY=4
+    </select>
+
+    <!-- 查询身份名称 -->
+    <select id="queryIdentityName" parameterType="java.util.HashMap" resultType="String">
+        <if test="identity==1">
+            SELECT PERSONNAME FROM t_SYS_USER WHERE IDENTITY_CODE = #{identity_code} AND ISDEL = 0
+        </if>
+        <if test="identity==2">
+            SELECT AGENT_NAME FROM BASE_AGENT WHERE AGENT_CODE = #{identity_code} AND ISDEL = 0
+        </if>
+        <if test="identity==3">
+            SELECT NAME FROM BASE_BRAND WHERE BRAND_CODE = #{identity_code} AND ISDEL = 0
+        </if>
+    </select>
+
+    <!-- 查询代理商 -->
+    <select id="queryAgentByBrandCode" parameterType="String" resultType="com.biz.model.Pmodel.basic.Agent">
+        SELECT B.AGENT_CODE,B.AGENT_NAME FROM BASE_BRAND A LEFT JOIN BASE_AGENT B ON A.AGENT_CODE = B.AGENT_CODE
+        WHERE B.ISDEL=0 AND A.BRAND_CODE=#{brand_code}
+    </select>
+
+    <!-- 查询代理商 -->
+    <select id="queryAgentByCondition" resultType="com.biz.model.Pmodel.basic.Agent">
+        SELECT AGENT_CODE,AGENT_NAME,agent_p_code FROM BASE_AGENT WHERE ISDEL=0
+    </select>
+
+    <!-- 查询品牌 -->
+    <select id="queryBrandByCondition" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.basic.Brand">
+        SELECT BRAND_CODE,NAME,is_90 FROM BASE_BRAND WHERE ISDEL=0 AND AGENT_CODE REGEXP CONCAT('^', #{agent_code})
+        <if test="is90!= null and is90=='yes'">
+            AND is_90=1
+        </if>
+        <if test="is90!= null and is90=='no'">
+            AND is_90=0
+        </if>
+    </select>
+
+    <!-- 获取 -->
+    <select id="getShopByCode" parameterType="String" resultType="com.biz.model.Pmodel.api.Shop">
+        SELECT S.*,D.area_name AS province_name,E.area_name AS city_name,F.area_name AS dis_name,G.DISTRICT_NAME AS district_name
+        FROM BASE_SHOP S
+        LEFT JOIN BASE_AREA D ON D.AREA_CODE = S.province
+        LEFT JOIN BASE_AREA E ON E.AREA_CODE = S.CITY
+        LEFT JOIN BASE_AREA F ON F.AREA_CODE = S.district
+        LEFT JOIN BASE_DISTRICT G ON S.DISTRICT_CODE = G.DISTRICT_CODE
+        WHERE S.SID=#{sid} AND S.ISDEL = 0
+    </select>
+
+
+    <select id="getShopBySid" resultType="com.biz.model.Pmodel.api.Shop" parameterType="String">
+        select a.*,ifnull(b.isPeriodization,'0') as isPeriodization,ifnull(b.iscoin,0)as iscoin,ifnull(b.ticketType,0) as ticketType from base_shop a
+        left join base_brand b on a.brand_code = b.brand_code
+        where sid=#{shop_id}
+    </select>
+
+    <select id="queryAllShopByBrand" parameterType="String" resultType="com.biz.model.Pmodel.api.Shop">
+        SELECT * FROM BASE_SHOP WHERE ISDEL=0 AND BRAND_CODE = #{brandCode}
+    </select>
+
+    <select id="showBusiness" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+SELECT a.*,IFNULL(b.category_name,'无')as parentName FROM BASE_CATEGORY a
+LEFT JOIN base_category b on a.category_parent=b.category_code
+WHERE a.ISDEL=0
+        ORDER BY a.SORT
+        limit #{begin},#{rows}
+    </select>
+    <select id="showBusinessCount" parameterType="java.util.HashMap" resultType="java.lang.Integer">
+SELECT count(1) FROM BASE_CATEGORY WHERE ISDEL=0
+        ORDER BY SORT
+    </select>
+    <insert id="doSaveBusiness" parameterType="com.biz.model.Pmodel.basic.Category">
+        INSERT INTO base_category (category_code,category_name,category_parent,sort) VALUES(#{category_code},#{category_name},#{category_parent},#{sort})
+    </insert>
+
+    <select id="toGetEdit" parameterType="String" resultType="com.biz.model.Pmodel.basic.Pshop">
+        SELECT a.*,b.path,c.loginName,c.pwd from base_shop a
+LEFT JOIN base_pics b on a.logo_url=b.id
+LEFT JOIN t_sys_user c on c.identity_code=a.sid
+where a.sid=#{sid} and c.type=1
+    </select>
+
+
+    <select id="getShopListForSelect" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.basic.Pshop">
+        select sid,business_name from base_shop where isdel=0
+        <if test="pid != null and pid != ''">
+            AND brand_code=#{pid}
+        </if>
+        <if test="identity==4">
+            and sid=#{identity_code}
+        </if>
+    </select>
+
+
+    <update id="updateQrCode" parameterType="com.biz.model.Pmodel.basic.Pshop">
+        update base_shop set qrcode=#{qrcode} where sid=#{sid}
+    </update>
+
+
+    <select id="getGoodsIdByShopAndGoodsId" resultType="String" parameterType="java.util.Map">
+        select goodsId from t_goods_shop where shopId=#{sid} and goodsId in (${goods}) and isdel=0
+    </select>
+
+    <insert id="saveGoodsAndShop" parameterType="java.util.Map">
+        INSERT  INTO  t_goods_shop
+        (id,shopId,goodsId,userId)
+        values
+        <foreach collection="saveIds" close="" index="index" item="item" open="" separator=",">
+            ( replace(uuid(), '-', ''),#{sid},#{item},#{userId})
+        </foreach>
+    </insert>
+
+
+    <delete id="updateGoodsAndShopForDrop" parameterType="java.util.Map">
+        DELETE  from t_goods_shop   where shopId=#{sid} and goodsId in (${goods}) and isdel=0
+    </delete>
+    <update id="updateGoodsAndShopUpAndDown" parameterType="java.util.Map">
+        UPDATE  t_goods_shop set isSale=#{isSale} where shopId=#{sid} and goodsId in (${goods}) and isdel=0
+    </update>
+
+
+    <select id="getShopGoods" parameterType="java.util.Map" resultType="java.util.Map">
+        select goodsId,id,isSale from t_goods_shop   where shopId=#{sid} and isdel=0 
+        and goodsId in 
+        <foreach collection="goodsList" close=")" index="index" item="item" open="(" separator=",">
+            #{item.id}
+        </foreach>
+    </select>
+</mapper>

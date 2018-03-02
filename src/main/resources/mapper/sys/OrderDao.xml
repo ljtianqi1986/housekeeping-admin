@@ -1,0 +1,926 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="OrderDao">
+    <!-- 分页数据 所有花店购买订单 -->
+    <select id="findPageShopBuyOrder" parameterType="java.util.HashMap"  resultType="java.util.HashMap">
+        SELECT a.id AS mainId,
+        b.id AS detailId,
+        ifnull(a.freightTotal,0) as freightTotal,
+        a.isClosed,
+        a.code,
+        b.coinPayTotal,
+        a.paycode,
+        IFNULL(d.person_name,d.phone)AS buyerName,
+        a.state AS mainState,
+        b.state AS detailState,
+        b.count,
+        DATE_FORMAT(a.createTime,'%Y-%m-%d %H:%i:%s') AS createTime,
+        b.goodsTotal as alltotal,
+        b.payTotal,
+        c.name AS goodsName,
+        b.price AS goodPrice,
+        e.path AS goodsPath,
+        ifnull(e.mainType,'0') as mainType,
+        IFNULL(b.buyNotes,'') as buyNotes,
+        IFNULL(a.message,'') as message,
+        IFNULL(s1.name,'') as type1Name,
+        IFNULL(s2.name,'') as type2Name,
+        IFNULL(s3.name,'') as type3Name
+        FROM
+        order_main a
+        INNER JOIN order_detail b ON b.orderId = a.id and b.isdel=0
+        INNER JOIN
+        base_wxgoods c ON b.goodsId=c.id and c.isdel=0
+        INNER JOIN base_user d
+        ON d.id = a.buyUserId and d.isdel=0
+        left join base_pics e on
+        e.mainId=c.id
+        LEFT JOIN base_wxgoods_stock s on s.id=b.stockId
+        LEFT JOIN base_wxgoods_property p1 on p1.id=s.typesId1
+        LEFT JOIN base_standard s1 on s1.id=p1.property
+        LEFT JOIN base_wxgoods_property p2 on p2.id=s.typesId2
+        LEFT JOIN base_standard s2 on s2.id=p2.property
+        LEFT JOIN base_wxgoods_property p3 on p3.id=s.typesId3
+        LEFT JOIN base_standard s3 on s3.id=p3.property
+        where
+        a.isdel=0 and  a.source=0 and b.goodsType=0
+        <if test="shopId !=null and shopId !=''">
+           and  a.shopId=#{shopId}
+        </if>
+        <if test="code !=null and code !=''">
+            AND a.code like CONCAT(CONCAT('%', #{code}),'%')
+        </if>
+        <if test="payCode !=null and payCode !=''">
+            AND a.payCode like CONCAT(CONCAT('%', #{payCode}),'%')
+        </if>
+        <if test=" personName !=null and personName !=''">
+            AND d.personName like CONCAT(CONCAT('%',#{personName}),'%')
+        </if>
+        <if test=" loginName !=null and loginName !=''">
+            AND d.loginName like CONCAT(CONCAT('%',#{loginName}),'%')
+        </if>
+        <if test="startDate!=null and startDate !=''">
+            AND a.createTime >=#{startDate}
+        </if>
+        <if test=" endDate!=null and endDate !=''">
+            <![CDATA[ AND a.createTime <= #{endDate}]]>
+        </if>
+        <if test="states!=null and states !='' and states != '-1' ">
+            and b.state = #{states}
+        </if>
+        group by b.id
+        ORDER BY a.createTime DESC
+        limit #{begin},#{rows}
+    </select>
+
+
+
+    <!-- 数据量 所有花店购买订单 -->
+    <select id="countShopBuyOrder" parameterType="java.util.HashMap"
+            resultType="java.lang.Integer">
+        SELECT count(1)
+        FROM
+        order_main a
+        INNER JOIN order_detail b ON b.orderId = a.id and b.isdel=0
+        INNER JOIN
+        base_wxgoods c ON b.goodsId=c.id and c.isdel=0
+        INNER JOIN base_user d
+        ON d.id = a.buyUserId and d.isdel=0
+        left join base_pics e on
+        e.id=c.coverId
+        where
+          a.isdel=0 and  a.source=0 and b.goodsType=0
+        <if test="shopId !=null and shopId !=''">
+           and  a.shopId=#{shopId}
+        </if>
+        <if test="code !=null and code !=''">
+            AND a.code like CONCAT(CONCAT('%', #{code}),'%')
+        </if>
+        <if test="payCode !=null and payCode !=''">
+            AND a.payCode like CONCAT(CONCAT('%', #{payCode}),'%')
+        </if>
+        <if test=" personName !=null and personName !=''">
+            AND d.personName like CONCAT(CONCAT('%',#{personName}),'%')
+        </if>
+        <if test=" loginName !=null and loginName !=''">
+            AND d.loginName like CONCAT(CONCAT('%',#{loginName}),'%')
+        </if>
+        <if test="startDate!=null and startDate !=''">
+            AND a.createTime >=#{startDate}
+        </if>
+        <if test=" endDate!=null and endDate !=''">
+            <![CDATA[ AND a.createTime <= #{endDate}]]>
+        </if>
+        <if test="states!=null and states !='' and states != '-1' ">
+            and b.state = #{states}
+        </if>
+
+    </select>
+
+
+    <select id="findOrderInfoById" parameterType="java.util.Map"
+            resultType="java.util.Map">
+        SELECT
+        a.id,
+        b.person_name as personName,
+        a.payCode,
+        a.allTotal,
+        a.payTotal,
+        a.code,
+        a.freightTotal,
+        DATE_FORMAT(a.createTime,'%Y-%m-%d %H:%i:%s') AS createTime,
+        DATE_FORMAT(a.payTime,'%Y-%m-%d %H:%i:%s') AS payTime,
+        DATE_FORMAT(a.confirmTime,'%Y-%m-%d %H:%i:%s') AS confirmTime,
+        a.area,
+        a.pro,
+        a.city,
+        a.buyAddr,
+        a.message,
+        a.isClosed,
+        a.paymentRoute,
+        a.state,
+        a.goodsTotal
+        FROM
+        order_main a
+        INNER JOIN base_user b ON a.buyUserId = b.id
+        where a.id=#{id}
+    </select>
+
+
+    <select id="findOrderDetailById" parameterType="java.util.Map"
+            resultType="java.util.Map">
+        select b.name as goodsName,p.path,ifnull(p.mainType,'0')as mainType,ifnull(d.name,'') as typeName1,ifnull(f.name,'') as
+        typeName2,ifnull(i.name,'') as typeName3,a.* ,(ifnull(a.coinPayTotal,0)+ifnull(a.payTotal,0)) as serviceTotal from order_detail a
+        INNER JOIN base_wxgoods b on b.id =a.goodsId
+          INNER JOIN base_wxgoods_stock bws on bws.id =a.stockId
+        LEFT JOIN base_pics p on p.mainId=b.id
+        LEFT JOIN base_wxgoods_property c on c.id=bws.typesId1
+        LEFT JOIN base_standard d on c.property=d.id
+
+        LEFT JOIN base_wxgoods_property e on e.id=bws.typesId2
+        LEFT JOIN base_standard f on e.property=f.id
+
+        LEFT JOIN base_wxgoods_property h on h.id=bws.typesId3
+        LEFT JOIN base_standard i on h.property=i.id
+
+        where a.id=#{detailId}
+        group by a.id
+    </select>
+
+
+    <select id="findOrderRefundById" parameterType="java.util.Map"
+            resultType="java.util.Map">
+        select * from t_order_refund where orderId=#{detailId} order by createTime desc
+        limit 1
+    </select>
+
+
+    <select id="findOrderSendById" parameterType="java.util.Map"
+            resultType="java.util.Map">
+        select * from order_send where orderId=#{id} GROUP BY orderid
+    </select>
+
+    <!-- 导出excel -->
+    <select id="exportExcel_orderUnion" parameterType="java.util.HashMap"
+            resultType="com.biz.model.Pmodel.PorderMain">
+SELECT
+	a.id,
+	b.id AS detailId,
+	a.code,
+	a.payCode,
+	a.buyUserId,
+	a.buyAddr,
+	a.createTime,
+	b.coinPayTotal,
+	b.price as goodsPrice,
+	b.count as goodsCount,
+	b.goodsTotal,
+	u.person_name as buyUserName,
+	u.phone,
+	a.freightTotal,
+	b.payTotal,
+	a.state,
+	b.state as detailState,
+	ifnull(b.confirmTimes,'') as confirmTime,
+	a.message,
+e.`name` as goodsName,
+f.typeName as typesNames
+
+FROM
+	order_main a
+INNER JOIN order_detail b ON b.orderId = a.id
+INNER JOIN base_user u ON u.id = a.buyUserId
+INNER JOIN base_wxgoods_stock d on d.id=b.stockId
+INNER JOIN base_wxgoods e on e.id=d.goodsId
+INNER JOIN(
+select a.id,concat(ifnull(e.`name`,''),ifnull(f.`name`,''),ifnull(g.`name`,''))as typeName from base_wxgoods_stock a
+LEFT JOIN base_wxgoods_property b on a.typesId1=b.id
+LEFT JOIN base_wxgoods_property c on a.typesId2=c.id
+LEFT JOIN base_wxgoods_property d on a.typesId3=d.id
+LEFT JOIN base_standard e on e.id=b.property
+LEFT JOIN base_standard f on f.id=c.property
+LEFT JOIN base_standard g on g.id=d.property
+) f on f.id=d.id
+where b.goodsType=1
+        and
+        a.isdel=0
+        <if test="code !=null and code !=''">
+            AND a.code like CONCAT(CONCAT('%', #{code}),'%')
+        </if>
+        <if test="startDate!=null and startDate !=''">
+            AND a.createTime >=#{startDate}
+        </if>
+        <if test=" endDate!=null and endDate !=''">
+            <![CDATA[ AND a.createTime <= #{endDate}]]>
+        </if>
+        <if test="states!=null and states !='' and states != '-1' ">
+            and b.state = #{states}
+        </if>
+GROUP BY b.id
+ ORDER BY a.createTime DESC
+            </select>
+
+    <!-- 导出excel -->
+    <select id="exportExcel_shopDeMain" parameterType="java.util.HashMap"
+            resultType="com.biz.model.Pmodel.PorderMain">
+        SELECT
+        a.id,
+        b.id AS detailId,
+        a.isClosed,
+        a.code,
+        a.paycode,
+        ifnull(a.area,'') as area,
+        ifnull(a.city,'') as city,
+        ifnull(a.pro,'') as pro,
+        ifnull(a.buyAddr,'') as buyAddr,
+        d.personName AS buyUserName,
+        a.state,
+        b.state AS detailState,
+        b.count AS goodsCount,
+        DATE_FORMAT(a.createTime,'%Y-%m-%d %H:%i:%s') AS createTime,
+        ifnull(a.allTotal,0) as allTotal,
+        ifnull(a.payTotal,0) as payTotal,
+        0 as couponTotal,
+        ifnull(a.freightTotal,0) as freightTotal,
+        0 as integralTotal,
+        ifnull(a.goodsTotal,0) as goodsTotal,
+        c.name AS goodsName,
+        b.price AS goodsPrice,
+        b.buyNotes,
+        D.loginName,
+        a.paymentRoute,
+        DATE_FORMAT(a.payTime,'%Y-%m-%d %H:%i:%s') AS payTime,
+        DATE_FORMAT(a.confirmTime,'%Y-%m-%d %H:%i:%s') AS confirmTime,
+        '' as giveMsg,
+        '' as givePhone,
+        '' as message,
+        ifnull(CONCAT(ifnull(bs1.name,''),' ',ifnull(bs2.name,''),' ',ifnull(bs3.name,'')),'') as typesNames
+        FROM
+        order_main a
+        LEFT JOIN order_detail b ON b.orderId = a.id and b.isdel=0
+        LEFT JOIN
+        base_wxgoods c ON b.goodsId=c.id and c.isdel=0
+        LEFT JOIN
+        base_wxgoods_stock bws ON b.stockId=bws.id and bws.isdel=0
+        LEFT JOIN t_sys_user d
+        ON d.id = a.buyUserId and d.isdel=0
+        LEFT JOIN base_wxgoods_property wp1
+        on wp1.id=bws.typesId1
+        LEFT JOIN base_wxgoods_property wp2 on
+        wp2.id=bws.typesId2
+        LEFT JOIN base_wxgoods_property wp3 on
+        wp3.id=bws.typesId3
+        LEFT JOIN base_standard bs1 on bs1.id=wp1.property
+        LEFT JOIN base_standard bs2 on bs2.id=wp2.property
+        LEFT JOIN
+        base_standard bs3 on bs3.id=wp3.property
+        where
+        a.isdel=0 and  a.source=0 and b.goodsType=0
+
+        <if test="code !=null and code !=''">
+            AND a.code like CONCAT(CONCAT('%', #{code}),'%')
+        </if>
+        <if test="payCode !=null and payCode !=''">
+            AND a.payCode like CONCAT(CONCAT('%', #{payCode}),'%')
+        </if>
+        <if test=" personName !=null and personName !=''">
+            AND d.personName like CONCAT(CONCAT('%',#{personName}),'%')
+        </if>
+        <if test=" loginName !=null and loginName !=''">
+            AND d.loginName like CONCAT(CONCAT('%',#{loginName}),'%')
+        </if>
+        <if test="startDate!=null and startDate !=''">
+            AND a.createTime >=#{startDate}
+        </if>
+        <if test=" endDate!=null and endDate !=''">
+            <![CDATA[ AND a.createTime <= #{endDate}]]>
+        </if>
+        <if test="states!=null and states !='' and states != '-1' ">
+            and b.state = #{states}
+        </if>
+
+        GROUP BY
+        a.id
+        ORDER BY a.createTime DESC
+    </select>
+
+
+
+    <select id="orderSendList" parameterType="java.util.Map"
+            resultType="com.biz.model.Pmodel.basic.PorderSend">
+        select * from order_send where orderid=#{orderid}
+    </select>
+
+
+    <!-- 修改状态(更具orderid 修改字表状态) -->
+    <update id="updateOrderDetailState" parameterType="java.util.HashMap">
+        update
+        order_detail set state=#{state} where orderId=#{orderid}
+    </update>
+
+
+
+    <!-- 保存物流配送单号和配送方式 -->
+    <update id="updateOrderSend" parameterType="java.util.HashMap">
+        update order_send set
+        sendType=#{sendType},
+        logisticsCompany=#{logisticsCompany},
+        sendCode=#{sendCode},
+        sendTime=now()
+        where orderid=#{orderid}
+    </update>
+<select id="getOutTimeOrder" parameterType="java.util.Map" resultType="java.util.Map">
+    select a.id from order_main a
+LEFT JOIN order_detail b on a.id=b.orderId
+LEFT JOIN base_wxgoods c on c.id=b.goodsId
+where a.isdel=0 and a.isClosed=0 and b.state=0 and b.delType is null
+and SUBDATE(NOW(),INTERVAL ${minus} MINUTE)>=a.createTime
+and a.source =0
+and c.isTicket=0
+GROUP BY a.id
+</select>
+    <select id="findStocksByOrderId" parameterType="com.biz.model.Pmodel.basic.PwxGoodsStockHistory" resultType="java.util.Map">
+SELECT
+a.id as relateCode,
+b.skuId as stockId,
+	a.count AS changeNumber,
+	11 AS state,
+	'线上超时未支付订单关闭退回仓库' AS note,
+	#{cityId} AS city
+FROM
+	order_detail a
+	LEFT JOIN base_wxgoods_stock b on a.stockId =b.id
+WHERE
+	a.isdel = 0
+AND a.orderId =#{id}
+    </select>
+
+    <!-- 修改状态(更具orderid 修改字表状态) -->
+    <update id="updateOrderClose" parameterType="java.util.HashMap">
+        update
+        order_main set isClosed=1 where id=#{id}
+    </update>
+
+    <select id="findPageShopRefundOrder" parameterType="java.util.Map" resultType="java.util.Map">
+        SELECT
+        a.id AS mainId,
+        b.id AS detailId,
+        a.isClosed,
+        a.code,
+        a.paycode,
+        IFNULL(d.person_name,d.phone)AS buyerName,
+        a.state AS mainState,
+        b.state AS detailState,
+        b.count,
+        DATE_FORMAT(a.createTime,'%Y-%m-%d %H:%i:%s') AS createTime,
+        b.goodsTotal as allTotal,
+        b.coinPayTotal,
+        b.payTotal,
+        (case b.goodsType when 0 then b.goodsTotal else 0 end) as couponsPayTotal ,
+        c.name AS goodsName,
+        b.price AS goodPrice,
+        e.path AS goodsPath,
+        ifnull(e.mainType,'0') as mainType,
+        ifnull(b.buyNotes,'') as buyNotes,
+        IFNULL(a.message,'') as message,
+        r.state,r.remarks
+        ,
+        IFNULL(s1.name,'') as type1Name,
+        IFNULL(s2.name,'') as type2Name,
+        IFNULL(s3.name,'') as type3Name
+        FROM
+        order_main a
+        INNER JOIN order_detail b ON b.orderId = a.id and b.isdel=0
+        INNER JOIN
+        base_wxgoods c ON b.goodsId=c.id and c.isdel=0
+        INNER JOIN base_user d
+        ON d.id = a.buyUserId and d.isdel=0
+        left join base_pics e on
+        e.mainId=c.id
+        left join t_order_refund r on r.orderId=b.id and
+        r.isdel=0
+        LEFT JOIN base_wxgoods_stock s on s.id=b.stockId
+        LEFT JOIN base_wxgoods_property p1 on p1.id=s.typesId1
+        LEFT JOIN base_standard s1 on s1.id=p1.property
+        LEFT JOIN base_wxgoods_property p2 on p2.id=s.typesId2
+        LEFT JOIN base_standard s2 on s2.id=p2.property
+        LEFT JOIN base_wxgoods_property p3 on p3.id=s.typesId3
+        LEFT JOIN base_standard s3 on s3.id=p3.property
+        where r.id is not null
+        and a.isdel=0
+        <if test="shopId !=null and shopId !=''">
+            and a.shopId=#{shopId}
+        </if>
+        <if test="code !=null and code !=''">
+            AND a.code like CONCAT(CONCAT('%', #{code}),'%')
+        </if>
+        <if test="payCode !=null and payCode !=''">
+            AND a.payCode like CONCAT(CONCAT('%', #{payCode}),'%')
+        </if>
+        <if test=" personName !=null and personName !=''">
+            AND d.person_name like CONCAT(CONCAT('%',#{personName}),'%')
+        </if>
+        <if test=" phone !=null and phone !=''">
+            AND d.phone like CONCAT(CONCAT('%',#{phone}),'%')
+        </if>
+        <if test="startDate!=null and startDate !=''">
+            AND a.createTime &gt;=#{startDate}
+        </if>
+        <if test=" endDate!=null and endDate !=''">
+            <![CDATA[ AND a.createTime <= #{endDate}]]>
+        </if>
+        <if test="states!=null and states !='' and states != '-1' ">
+            and b.state = #{states}
+        </if>
+        GROUP BY
+        b.id
+        ORDER BY a.createTime DESC
+        limit #{begin},#{rows}
+    </select>
+
+    <select id="countShopRefundOrder" parameterType="java.util.HashMap"
+            resultType="java.lang.Integer">
+        SELECT
+        count(1)
+        FROM
+        (
+        SELECT
+        r.*
+        FROM
+        order_main a
+        INNER JOIN order_detail b ON b.orderId = a.id and b.isdel=0
+        INNER JOIN
+        base_wxgoods c ON b.goodsId=c.id and c.isdel=0
+        INNER JOIN base_user d
+        ON d.id = a.buyUserId and d.isdel=0
+        left join base_pics e on
+        e.mainId=c.id
+        left join t_order_refund r on r.orderId=b.id and
+        r.isdel=0
+        where r.id is not null
+        and a.isdel=0
+        <if test="shopId !=null and shopId !=''">
+            and a.shopId=#{shopId}
+        </if>
+        <if test="code !=null and code !=''">
+            AND a.code like CONCAT(CONCAT('%', #{code}),'%')
+        </if>
+        <if test="payCode !=null and payCode !=''">
+            AND a.payCode like CONCAT(CONCAT('%', #{payCode}),'%')
+        </if>
+        <if test=" personName !=null and personName !=''">
+            AND d.personName like CONCAT(CONCAT('%',#{personName}),'%')
+        </if>
+        <if test=" loginName !=null and loginName !=''">
+            AND d.loginName like CONCAT(CONCAT('%',#{loginName}),'%')
+        </if>
+        <if test="startDate!=null and startDate !=''">
+            AND a.createTime >=#{startDate}
+        </if>
+        <if test=" endDate!=null and endDate !=''">
+            <![CDATA[ AND a.createTime <= #{endDate}]]>
+        </if>
+        <if test="states!=null and states !='' and states != '-1' ">
+            and b.state = #{states}
+        </if>
+        GROUP BY
+        b.id)f
+    </select>
+
+
+    <select id="findRefundInfoById" parameterType="String" resultType="java.util.HashMap">
+        SELECT
+        d.id,
+        d.transaction_id,
+        d.payTotal,
+        g.venderId,
+        u.open_id,
+        u.id as userId,
+        d.goodsTotal as balance_90,
+        d.payTotal,
+        d.goodsType,
+        d.coinPayTotal,
+        g.name,
+        ifnull(d.balance_90,0) as balance90,
+        ifnull(d.balance_shopping_90,0) as balance_shopping_90,
+        ifnull(d.balance_experience_90,0) as balance_experience_90,
+        IFNULL(m.code,'') as  code,
+        ifnull(m.freightTotal,0) as freightTotal,
+        m.id as mainId,r.money
+        FROM
+        order_detail d
+        LEFT JOIN base_wxgoods g ON g.id = d.goodsId
+        LEFT JOIN order_main m ON m.id = d.orderId
+        LEFT JOIN base_user u ON u.id = m.buyUserId
+        LEFT JOIN t_order_refund r on r.orderId=d.id
+        WHERE
+        d.id = #{id}
+    </select>
+
+
+    <select id="findOrderMainInfo" parameterType="String" resultType="java.util.HashMap">
+        SELECT m.id,IFNULL(m.code,'') as code FROM order_main m
+        left join order_detail d on m.id=d.orderId
+        where d.id = #{id}
+        limit 1
+    </select>
+
+    <!-- 修改状态(更具orderdetailid 修改字表状态) -->
+    <update id="updateOrderDetailidState" parameterType="java.util.HashMap">
+        update
+        order_detail set state=#{state} where id=#{orderid}
+    </update>
+
+    <!-- 申请退款退回审批 -->
+    <update id="updateRefund" parameterType="java.util.HashMap">
+        update t_order_refund set
+        state=#{state},
+        userId=#{userId},
+        applyTime=now(),
+        remarks=#{remarks}
+        where id=#{id}
+    </update>
+
+    <!-- 退款详情信息 -->
+    <select id="orderRefundMx" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+        SELECT r.id,r.money,r.state,r.count,r.note,d.id as detailid
+        ,d.orderId,m.code,m.buyUserId,r.orderstate,m.paymentRoute FROM t_order_refund r
+        left join order_detail d on r.orderId=d.id
+        left join order_main m on m.id=d.orderId
+        where 1=1
+        and r.isdel=0 AND r.orderId=#{orderId} limit 1
+    </select>
+
+    <!-- 退款详情信息（图片） -->
+    <select id="orderRefundMxPic" parameterType="java.util.HashMap"
+            resultType="com.biz.model.Pmodel.basic.Ppics">
+        select * from base_pics where mainId in (select r.id from t_order_refund r where r.isdel=0 AND r.orderId=#{orderId} )
+    </select>
+
+    <!-- 修改状态(更具orderid 修改字表状态) -->
+    <update id="updateOrderDetaildelType" parameterType="java.util.HashMap">
+        update
+        order_detail set delType=0 where orderId=#{id}
+    </update>
+
+
+
+
+    <!-- 分页数据 所有花店购买订单 -->
+    <select id="findPageOrderUnion" parameterType="java.util.HashMap"  resultType="java.util.HashMap">
+        SELECT a.id AS mainId,
+        b.id AS detailId,
+        a.isClosed,
+        a.code,
+        b.coinPayTotal,
+        a.paycode,
+        IFNULL(d.person_name,d.phone)AS buyerName,
+        a.state AS mainState,
+        b.state AS detailState,
+        b.count,
+        DATE_FORMAT(a.createTime,'%Y-%m-%d %H:%i:%s') AS createTime,
+        b.goodsTotal as alltotal,
+        b.payTotal,
+        c.name AS goodsName,
+        b.price AS goodPrice,
+        e.path AS goodsPath,
+        ifnull(e.mainType,'0') as mainType,
+        IFNULL(b.buyNotes,'') as buyNotes,
+        IFNULL(a.message,'') as message,
+        IFNULL(s1.name,'') as type1Name,
+        IFNULL(s2.name,'') as type2Name,
+        IFNULL(s3.name,'') as type3Name
+        FROM
+        order_main a
+        INNER JOIN order_detail b ON b.orderId = a.id and b.isdel=0
+        INNER JOIN base_wxgoods c ON b.goodsId=c.id and c.isdel=0
+        INNER JOIN base_user d
+        ON d.id = a.buyUserId and d.isdel=0
+        left join base_pics e on
+        e.mainId=c.id
+        LEFT JOIN base_wxgoods_stock s on s.id=b.stockId
+        LEFT JOIN base_wxgoods_property p1 on p1.id=s.typesId1
+        LEFT JOIN base_standard s1 on s1.id=p1.property
+        LEFT JOIN base_wxgoods_property p2 on p2.id=s.typesId2
+        LEFT JOIN base_standard s2 on s2.id=p2.property
+        LEFT JOIN base_wxgoods_property p3 on p3.id=s.typesId3
+        LEFT JOIN base_standard s3 on s3.id=p3.property
+        where
+        a.isdel=0 and  a.source=0 and b.goodsType=1
+        <if test="agentCode !=null and agentCode !=''">
+            AND a.brandCode in (select brand_code from base_brand where agent_code=#{agentCode})
+        </if>
+        <if test="brandCode !=null and brandCode !=''">
+            AND a.brandCode = #{brandCode}
+        </if>
+        <if test="code !=null and code !=''">
+            AND a.code like CONCAT(CONCAT('%', #{code}),'%')
+        </if>
+        <if test="payCode !=null and payCode !=''">
+            AND a.payCode like CONCAT(CONCAT('%', #{payCode}),'%')
+        </if>
+        <if test=" personName !=null and personName !=''">
+            AND d.personName like CONCAT(CONCAT('%',#{personName}),'%')
+        </if>
+        <if test=" loginName !=null and loginName !=''">
+            AND d.loginName like CONCAT(CONCAT('%',#{loginName}),'%')
+        </if>
+        <if test="startDate!=null and startDate !=''">
+            AND a.createTime >=#{startDate}
+        </if>
+        <if test=" endDate!=null and endDate !=''">
+            <![CDATA[ AND a.createTime <= #{endDate}]]>
+        </if>
+        <if test="states!=null and states !='' and states != '-1' ">
+            and b.state = #{states}
+        </if>
+        group by a.id
+        ORDER BY a.createTime DESC
+        limit #{begin},#{rows}
+    </select>
+
+
+
+    <!-- 数据量 所有花店购买订单 -->
+    <select id="countOrderUnion" parameterType="java.util.HashMap"
+            resultType="java.lang.Integer">
+        SELECT count(1)
+        FROM
+        order_main a
+        INNER JOIN order_detail b ON b.orderId = a.id and b.isdel=0
+        INNER JOIN
+        base_wxgoods c ON b.goodsId=c.id and c.isdel=0
+        INNER JOIN base_user d
+        ON d.id = a.buyUserId and d.isdel=0
+        left join base_pics e on
+        e.id=c.coverId
+        where
+        a.isdel=0 and  a.source=0 and b.goodsType=1
+        <if test="agentCode !=null and agentCode !=''">
+            AND a.brandCode in (select brand_code from base_brand where agent_code=#{agentCode})
+        </if>
+        <if test="brandCode !=null and brandCode !=''">
+            AND a.brandCode = #{brandCode}
+        </if>
+        <if test="code !=null and code !=''">
+            AND a.code like CONCAT(CONCAT('%', #{code}),'%')
+        </if>
+        <if test="payCode !=null and payCode !=''">
+            AND a.payCode like CONCAT(CONCAT('%', #{payCode}),'%')
+        </if>
+        <if test=" personName !=null and personName !=''">
+            AND d.personName like CONCAT(CONCAT('%',#{personName}),'%')
+        </if>
+        <if test=" loginName !=null and loginName !=''">
+            AND d.loginName like CONCAT(CONCAT('%',#{loginName}),'%')
+        </if>
+        <if test="startDate!=null and startDate !=''">
+            AND a.createTime >=#{startDate}
+        </if>
+        <if test=" endDate!=null and endDate !=''">
+            <![CDATA[ AND a.createTime <= #{endDate}]]>
+        </if>
+        <if test="states!=null and states !='' and states != '-1' ">
+            and b.state = #{states}
+        </if>
+
+    </select>
+    
+
+    <select id="getOpenIdByDetaiId" parameterType="String" resultType="String">
+        SELECT
+            ifnull(c.open_id, '') AS openId
+        FROM
+            order_detail a
+        LEFT JOIN order_main b ON a.orderId = b.id
+        LEFT JOIN base_user c ON b.buyUserId = c.id
+        WHERE
+            a.id = #{orderId}
+    </select>
+
+    <!-- 线上仓加库存-->
+    <select id="getHistoryListUpStock" parameterType="java.util.HashMap" resultType="com.biz.model.Pmodel.basic.PwxGoodsStockbak">
+        SELECT
+        a.id as detailId,
+            a.stockId as lmStockId,
+            a.orderId,
+            b.skuId as stockId,
+            a.count AS changeNumber,
+            whareHouseId AS whareHouseId,
+            11 AS state,
+            a.state as orderState,
+            w.isTicket,
+            #{cityId} AS city
+        FROM
+            order_detail a
+        left join base_wxgoods_stock b on b.id = a.stockId
+        left join base_wxgoods w on w.id=b.goodsId
+        WHERE
+            a.id = #{detailId}
+        AND a.isdel = 0
+    </select>
+
+    <!-- 联盟商品加商品 -->
+    <update id="addStoreCount" parameterType="java.util.HashMap">
+        update base_wxgoods_stock
+        set
+        stockOccupy=stockOccupy-#{count},
+        saleCount=saleCount-#{count},
+        stockNow=stockNow+#{count}
+        WHERE id = #{stockId} AND ISDEL=0
+
+    </update>
+
+
+    <select id="loadUnionSumInfo" parameterType="java.util.HashMap" resultType="com.biz.model.Pmodel.basic.PunionSumInfo">
+        SELECT a.id,
+        ifnull(sum(b.payTotal),0) as cashTotal,
+        ifnull(sum(b.coinPayTotal),0) as coinTotal,
+        ifnull(sum(case b.state when 6 then b.payTotal else 0 end),0) as cashBack,
+        ifnull(sum(case b.state when 6 then b.coinPayTotal else 0 end),0) as coinBack,
+        sum(1) as orderCount,
+        sum(case b.state when 6 then 1 else 0 end) as backCount
+        FROM
+        order_main a
+        INNER JOIN order_detail b ON b.orderId = a.id and b.isdel=0
+        INNER JOIN base_wxgoods c ON b.goodsId=c.id and c.isdel=0
+        INNER JOIN base_user d
+        ON d.id = a.buyUserId and d.isdel=0
+        left join (select mainId,path from base_pics where isdel=0 group by mainId) e on
+        e.mainId=c.id
+        where
+        a.isdel=0 and  a.source=0 and b.goodsType=1
+        <if test="agentCode !=null and agentCode !=''">
+            AND a.brandCode in (select brand_code from base_brand where agent_code=#{agentCode})
+        </if>
+        <if test="brandCode !=null and brandCode !=''">
+            AND a.brandCode = #{brandCode}
+        </if>
+        <if test="code !=null and code !=''">
+            AND a.code like CONCAT(CONCAT('%', #{code}),'%')
+        </if>
+        <if test="startDate!=null and startDate !=''">
+            AND a.createTime >=#{startDate}
+        </if>
+        <if test=" endDate!=null and endDate !=''">
+            <![CDATA[ AND a.createTime <= #{endDate}]]>
+        </if>
+
+    </select>
+
+
+
+    <select id="findBalance90DetailById" parameterType="java.util.Map" resultType="java.util.Map">
+        SELECT
+	ifnull(e.point90,'') AS point90All,
+	ifnull(f. NAME,'') AS name,
+	ifnull(e.source,'') AS source,
+	ifnull(e.type,'')  AS sendType,
+	ifnull(a.point90,'') AS point90,
+	ifnull(DATE_FORMAT(
+		e.createTime,
+		'%Y-%m-%d %H:%i:%s'
+	) ,'') AS createTime,
+	IFNULL(DATE_FORMAT(
+		e.expireTime,
+		'%Y-%m-%d %H:%i:%s'
+	),'') as expireTime
+FROM
+	base_90_detail_log a
+INNER JOIN(
+select code,id from order_main
+union all
+select id as code,orderId as id from order_detail
+union all
+select code,id from order_main_90)
+c on c.code=a.orderId
+
+
+INNER JOIN base_90_detail e ON e.id = a.sourceId
+LEFT JOIN base_brand f ON f.brand_code = e.brandId
+WHERE c.id=#{id}
+and a.type=0
+group by a.id
+    </select>
+
+
+    <select id="getLogByOrderId" parameterType="java.util.Map" resultType="java.util.Map">
+        select d.point90,d.sourceId from base_90_detail a
+LEFT JOIN order_main b on b.code=a.sourceId
+LEFT JOIn order_detail c on c.orderId=b.id
+LEFT JOIN base_90_detail_log d on d.orderId=a.sourceId
+where (c.id=#{order_code} or a.sourceId=#{order_code} or a.id=#{order_code})
+and d.ticketType=#{ticketType}
+GROUP BY d.id
+order by a.sorts asc,a.expireTime desc
+
+    </select>
+
+
+
+    <insert id="saveCodeDetails" parameterType="java.util.Map">
+        insert INTO base_exchange_log
+        (id,
+        code,
+        openId,
+        couponTotal,
+        coinTotal,
+        type,
+        orderTotal
+        )
+        VALUES
+        (
+        #{detailId},
+        #{cdKey},
+        #{openId},
+        #{couponTotal},
+        #{coinTotal},
+        #{type},
+        #{orderTotal}
+        )
+    </insert>
+
+    <select id="getOpenId" parameterType="String" resultType="String">
+        SELECT openId from order_main where id=#{orderid}
+    </select>
+
+    <select id="getPorderSend" parameterType="String" resultType="com.biz.model.Pmodel.basic.PorderSend">
+ SELECT a.*,GROUP_CONCAT(c.name) as name from order_send a
+LEFT JOIN order_detail b on a.orderid=b.orderId
+LEFT JOIN base_wxgoods c on c.id=b.goodsId
+where a.isdel=0 and a.orderid=#{orderid}
+group by a.orderid
+limit 1
+    </select>
+
+    <select id="findunRefundList" parameterType="java.util.Map" resultType="String">
+        select b.id from order_main a
+        LEFT JOIN order_detail b on b.orderId=a.id
+        where a.id=#{mainId}
+        and b.state!=6 and b.id!=#{id}
+    </select>
+
+    <select id="findIsSendOrderDetailId" resultType="String" parameterType="java.util.Map">
+        SELECT b.id from order_main a
+        LEFT JOIN order_detail b on a.id=b.orderId
+        LEFT JOIN t_order_refund c on c.orderId=b.id
+        where (c.orderstate>=2 or c.orderstate is null)
+        and a.id=#{mainId}
+    </select>
+
+
+    <select id="findOrderByUnionId" resultType="java.util.Map" parameterType="String">
+        select b.code as ordernum,a.state,f.path as src,f.mainType,d.name as bigtitle,e.typeName as smalltitle,a.count as goodsnum,a.price as goodsmoney,a.goodsType,a.goodsTotal,a.coinPayTotal from
+order_detail a
+INNER JOIN order_main b on a.orderId=b.id
+INNER JOIN base_wxgoods_stock c on c.id=a.stockId
+INNER JOIN base_wxgoods d on d.id=c.goodsId
+INNER JOIN
+(
+SELECT a.id,concat(ifnull(e.name,''),' ',ifnull(f.name,''),' ',ifnull(g.name,'')) as typeName from base_wxgoods_stock a
+LEFT JOIN base_wxgoods_property b on b.id=a.typesId1
+LEFT JOIN base_wxgoods_property c on c.id=a.typesId2
+LEFT JOIN base_wxgoods_property d on d.id=a.typesId3
+LEFT JOIN base_standard e on e.id=b.property
+LEFT JOIN base_standard f on f.id=c.property
+LEFT JOIN base_standard g on g.id=d.property
+GROUP BY a.id
+)e on e.id=c.id
+LEFT JOIN base_pics f on f.mainId=d.id
+INNER JOIN base_user u on u.id=b.buyUserId
+where u.unionId=#{unionId}
+GROUP BY a.id
+    </select>
+
+<select id="getStockIdByOrderId" parameterType="String" resultType="String">
+    select stockId from order_detail where orderId = #{_parameter}
+</select>
+
+
+    <select id="findDetailsIdByOrderId" parameterType="java.util.Map" resultType="java.util.Map">
+        SELECT id,goodsType from order_detail where orderId=#{orderid} and state in (1,2)
+    </select>
+</mapper>

@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="brandMapper" >
+
+    <!-- 代理商查询品牌 -->
+    <select id="findMerchantGrid"  resultType="com.biz.model.Pmodel.basic.Brand">
+        SELECT A.* , B.CATEGORY_NAME AS category_first_name , C.CATEGORY_NAME AS category_second_name,D.salesUserCount
+        FROM BASE_BRAND A
+        LEFT JOIN BASE_CATEGORY B ON A.category_first = B.category_code
+        LEFT JOIN BASE_CATEGORY C ON A.category_second = C.category_code
+        LEFT JOIN (
+        SELECT
+        b.brand_code,ifnull(count(u.id),0) as salesUserCount
+        FROM
+        BASE_BRAND b
+        LEFT JOIN base_sales s ON s.shopId = b.brand_code
+        AND s.isdel = 0
+        LEFT JOIN base_user u ON u.sales_id = s.id
+        AND u.isdel = 0
+        where b.isdel=0 GROUP BY b.brand_code
+        )D on D.brand_code=A.brand_code
+        WHERE A.ISDEL = 0
+        <if test="identity_code!=null and identity_code!=''">
+            and a.agent_code=#{identity_code}
+        </if>
+        <if test="searchtext != null and searchtext != ''">
+            AND A.name  like CONCAT(CONCAT('%', #{searchtext}),'%')
+        </if>
+        <if test="page != null and page != ''">
+            limit ${page},${rows}
+        </if>
+    </select>
+
+
+    <select id="findMerchantCount"  resultType="java.lang.Integer">
+        SELECT count(1)
+        FROM BASE_BRAND A
+        LEFT JOIN BASE_CATEGORY B ON A.category_first = B.category_code
+        LEFT JOIN BASE_CATEGORY C ON A.category_second = C.category_code
+        WHERE A.ISDEL = 0
+        <if test="identity_code!=null and identity_code!=''">
+            and a.agent_code=#{identity_code}
+        </if>
+        <if test="searchtext != null and searchtext != ''">
+            AND A.name  like CONCAT(CONCAT('%', #{searchtext}),'%')
+        </if>
+
+    </select>
+
+
+    <!--通过商户code 加载对应的商户数据-->
+
+    <select id="getMerchantById" resultType="com.biz.model.Pmodel.basic.Brand">
+        select * from BASE_BRAND where brand_code=#{ids}
+    </select>
+
+    <!--加载行业数据-->
+    <select id="getIndustry"  resultType="com.biz.model.Pmodel.basic.Category">
+        SELECT * FROM BASE_CATEGORY WHERE ISDEL=0
+        <if test="pid == null or pid == ''">
+            AND CATEGORY_PARENT='0'
+        </if>
+        <if test="pid != null and pid != ''">
+            AND CATEGORY_PARENT=#{pid}
+        </if>
+        ORDER BY SORT
+    </select>
+
+    <select id="getBrandListForSelect" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.basic.Brand">
+        select brand_code,name from base_brand where isdel=0
+        <if test="pid != null and pid != ''">
+            AND agent_code=#{pid}
+        </if>
+        <if test="identity==3">
+            and brand_code=#{identity_code}
+        </if>
+    </select>
+    <select id="checkName" parameterType="com.biz.model.Pmodel.basic.Pbrand"  resultType="java.lang.Integer">
+        select count(name) from base_brand where isdel=0 and name=#{name}
+    </select>
+    <select id="findById" parameterType="String" resultType="com.biz.model.Pmodel.basic.Pbrand">
+        SELECT
+        brand_code as brandCode,
+        dxy_code as dxyCode,
+        agent_code as agentCode,
+        name,
+        logo_url as logoUrl,
+        category_first as categoryFirst,
+        category_second as categorySecond,
+        province,
+        city,
+        balance_90 as balance90,
+        credit_total_90 as creditTotal90,
+        credit_now_90 as creditNow90,
+        commission,
+        procedures,
+        biz_code as bizCode,
+        is_90 as is90,
+        telephone,
+        address,
+        introduction,
+        speed_code as speedCode,
+        pageviews,
+        sort,
+        sorts,
+        proportion,
+        iscoin,
+        coinproportion,
+        isPeriodization,
+        expiryDateType,
+        zeroGoDateType,
+        experienceDateType,
+        isZeroCheck,
+        ticketType,
+        isTicket,
+        balance_90_shop as balance90_shop,
+        credit_total_90_shop as creditTotal90_shop,
+        credit_now_90_shop as creditNow90_shop,
+        balance_90_experience as balance90_experience,
+        credit_total_90_experience as creditTotal90_experience,
+        credit_now_90_experience as creditNow90_experience
+
+        FROM
+        base_brand
+        WHERE
+        brand_code =#{id}
+    </select>
+
+
+    <select id="findBrandStatisticsPage" parameterType="com.framework.model.Params" resultType="com.biz.model.Pmodel.basic.PbrandStatistics">
+        select a.*,'0'as newUsers,'0'as dxSendCount,'0'as dxSendAmount,'0'as dxCommission from (
+        SELECT
+        a.brand_code as id,
+        a.create_time,
+        '自动发券' as sendWay,
+        a.name,
+        a.commission,
+        a.islock as isLock,
+        sum(CASE WHEN ((b.source = 1) &amp;&amp;b.isdel=0) THEN	b.point90	ELSE 0 END) as sendAmount,
+        SUM(CASE WHEN ((b.source = 1) &amp;&amp;b.isdel=0) THEN	1	ELSE	0		END) as sendCount
+        FROM
+        base_brand a
+        LEFT JOIN base_90_detail b ON a.brand_code = b.brandId
+        where a.isdel=0
+        GROUP BY a.brand_code
+        UNION all
+        SELECT
+        a.brand_code as id,
+        a.create_time,
+        '手动发券' as sendWay,
+        a.name,
+        a.commission,
+        a.islock as isLock,
+        sum(CASE WHEN ((b.source = 2) &amp;&amp;b.isdel=0) THEN	b.point90	ELSE 0 END) as sendAmount,
+        SUM(CASE WHEN ((b.source = 2) &amp;&amp;b.isdel=0) THEN	1	ELSE	0		END) as sendCount
+        FROM
+        base_brand a
+        LEFT JOIN base_90_detail b ON a.brand_code = b.brandId
+        where a.isdel=0
+        GROUP BY a.brand_code
+        union ALL
+        SELECT
+        a.brand_code as id,
+        a.create_time,
+        '实体卡' as sendWay,
+        a.name,
+        a.commission,
+        a.islock as isLock,
+        sum(CASE WHEN ((b.source = 4) &amp;&amp;b.isdel=0) THEN	b.point90	ELSE 0 END) as sendAmount,
+        SUM(CASE WHEN ((b.source = 4) &amp;&amp;b.isdel=0) THEN	1	ELSE	0		END) as sendCount
+        FROM
+        base_brand a
+        LEFT JOIN base_90_detail b ON a.brand_code = b.brandId
+        where a.isdel=0
+        GROUP BY a.brand_code
+        )a
+        where 1=1
+        <if test="parm.name!=null and parm.name!=''">
+            and a.name like concat('%',#{parm.name},'%')
+        </if>
+        <if test="parm.type!=null and parm.type!=''">
+            and a.isLock = #{parm.type}
+        </if>
+        order by a.create_time desc
+        limit ${page},${rows}
+    </select>
+
+
+
+    <select id="countBrandStatistics" parameterType="com.framework.model.Params" resultType="com.biz.model.Pmodel.basic.PbrandStatistics">
+        select a.id from (
+        SELECT
+        a.brand_code as id,
+        '自动发券' as sendWay,
+        a.name,
+        a.commission,
+        a.islock as isLock,
+        sum(CASE WHEN ((b.source = 1) &amp;&amp;b.isdel=0) THEN	b.point90	ELSE 0 END) as sendAmount,
+        SUM(CASE WHEN ((b.source = 1) &amp;&amp;b.isdel=0) THEN	1	ELSE	0		END) as sendCount
+        FROM
+        base_brand a
+        LEFT JOIN base_90_detail b ON a.brand_code = b.brandId
+        where a.isdel=0
+        GROUP BY a.brand_code
+        UNION all
+        SELECT
+        a.brand_code as id,
+        '手动发券' as sendWay,
+        a.name,
+        a.commission,
+        a.islock as isLock,
+        sum(CASE WHEN ((b.source = 2) &amp;&amp;b.isdel=0) THEN	b.point90	ELSE 0 END) as sendAmount,
+        SUM(CASE WHEN ((b.source = 2) &amp;&amp;b.isdel=0) THEN	1	ELSE	0		END) as sendCount
+        FROM
+        base_brand a
+        LEFT JOIN base_90_detail b ON a.brand_code = b.brandId
+        where a.isdel=0
+        GROUP BY a.brand_code
+        union ALL
+        SELECT
+        a.brand_code as id,
+        '实体卡' as sendWay,
+        a.name,
+        a.commission,
+        a.islock as isLock,
+        sum(CASE WHEN ((b.source = 4) &amp;&amp;b.isdel=0) THEN	b.point90	ELSE 0 END) as sendAmount,
+        SUM(CASE WHEN ((b.source = 4) &amp;&amp;b.isdel=0) THEN	1	ELSE	0		END) as sendCount
+        FROM
+        base_brand a
+        LEFT JOIN base_90_detail b ON a.brand_code = b.brandId
+        where a.isdel=0
+        GROUP BY a.brand_code
+        )a
+        where 1=1
+        <if test="parm.name!=null and parm.name!=''">
+            and a.name like concat('%',#{parm.name},'%')
+        </if>
+        <if test="parm.type!=null and parm.type!=''">
+            and a.isLock = #{parm.type}
+        </if>
+    </select>
+
+    <insert id="savePeriodization" parameterType="java.util.List">
+        insert into periodization_set (id,termNum,scale,cycleDays,brandCode,createUser)
+        values
+        <foreach collection="list" item="item" index="index" separator="," >
+            (#{item.id},#{item.termNum},#{item.scale},#{item.cycleDays},#{item.brandCode},#{item.userId})
+        </foreach>
+    </insert>
+
+    <update id="updatePeriodization" parameterType="java.util.HashMap">
+        update periodization_set set isdel=1,lastModifyUser=#{userId},lastModifyTime=now() where brandCode=#{brandCode} and isdel=0
+    </update>
+
+    <select id="findPeriodizationByBrandId" parameterType="String" resultType="java.util.HashMap">
+        select s.*,b.isPeriodization from periodization_set s left join base_brand b on b.brand_code=s.brandCode where s.brandCode = #{id} and s.isdel=0 order by s.termNum
+    </select>
+    <select id="getBrandInfoByCode" resultType="java.util.Map" parameterType="String">
+        select * from base_brand where brand_code=#{brandCode}
+    </select>
+</mapper>

@@ -1,0 +1,32 @@
+关于分页参数的说明：
+	    	public static final String _LIKE="like";//模糊等于
+    		public static final String _EQUALS="equal";//等于
+    		public static final String _GT="gt";//大于
+    		public static final String _LT="lt";//小于
+
+结构：A+"_"+B+"_"+[C]  注：abc之间必须已 "_" 链接  
+
+A:规则，B：数据库中需要查询的列名（必须一样），C：可选项 辅助位（不可相同） 一般场景是：一个sql 中B被多次使用  例如CreateTime 需要查询区间
+
+
+样例：
+      like：
+	        params.put(Operator._LIKE+"_customer", "%" + request.getParameter("customer")+"%");
+		说明：A:Operator._LIKE  ==>["like"]
+		      B:customer
+		      like模糊查询 传入的值需要 连同值和 通配符 [%] 一起传入
+
+      equal(=)： params.put(Operator._EQUALS+"_state",0);
+		 说明：A：Operator._EQUALS ==>["="]
+		       B：state
+
+      gt(>):	params.put(Operator._GT +"_createTime_0", request.getParameter("startdate"));
+		 说明：A：Operator._GT	==>[">"]
+		       B：createTime
+		       C：0	
+
+      lt(<):	params.put(Operator._LT +"_createTime_1", request.getParameter("enddate"));	
+
+		 说明：A：Operator._LT	==>["<"]
+		       B：createTime
+		       C：1

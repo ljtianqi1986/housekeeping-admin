@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="WeiXinDao">
+    <!-- 查询 -->
+    <select id="getAuthorization" parameterType="java.util.HashMap"  resultType="com.biz.model.Pmodel.weixin.Pauthorization">
+        select id,text,createTime,IFNULL(end_time,0)as end_time from t_authorization where id=#{id}
+    </select>
+
+    <!-- 修改 -->
+    <update id="updateAuthorization" parameterType="java.util.HashMap">
+        update t_authorization set text=#{text},end_time=#{end_time},createTime=NOW() where id=#{id}
+    </update>
+
+
+    <!-- 获取授权微信信息 -->
+    <select id="getWeChatInfoByAppid" parameterType="String" resultType="com.biz.model.Pmodel.weixin.WeChatInfo">
+        SELECT * FROM t_weChat_info WHERE appid=#{appid} and ISDEL = 0
+    </select>
+
+    <!-- 获取授权微信信息 -->
+    <select id="getWeChatInfoByToUserName" parameterType="String" resultType="com.biz.model.Pmodel.weixin.WeChatInfo">
+        SELECT * FROM t_weChat_info WHERE origin_id=#{origin_id} and ISDEL = 0
+    </select>
+
+
+    <insert id="saveWeChat" parameterType="com.biz.model.Pmodel.weixin.WeChatInfo">
+        INSERT into t_weChat_info (appid,origin_id,refresh_token,end_time,access_token,authorization_code)
+        VALUES
+        (#{appid},#{origin_id},#{refresh_token},#{end_time},#{access_token},#{authorization_code})
+    </insert>
+
+    <update id="updateWeChat" parameterType="com.biz.model.Pmodel.weixin.WeChatInfo">
+        update t_weChat_info set origin_id=#{origin_id},refresh_token=#{refresh_token},end_time=#{end_time},access_token=#{access_token},authorization_code=#{authorization_code} where appid=#{appid}
+    </update>
+
+    <update id="updateWeChat2" parameterType="com.biz.model.Pmodel.weixin.WeChatInfo">
+        update t_weChat_info set access_token=#{access_token},end_time=#{end_time} where appid=#{appid}
+    </update>
+
+
+
+
+</mapper>

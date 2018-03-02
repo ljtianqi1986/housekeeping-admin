@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="war" name="housekeeping-admin:war">
+    <output-path>$PROJECT_DIR$/target</output-path>
+    <root id="archive" name="com.yzbd.housekeeping-admin-1.0-SNAPSHOT.war">
+      <element id="artifact" artifact-name="housekeeping-admin:war exploded" />
+    </root>
+  </artifact>
+</component>

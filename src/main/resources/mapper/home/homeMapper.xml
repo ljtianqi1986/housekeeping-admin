@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="homeDao">
+	
+	<!-- 查询所有菜单列表 -->
+	<select id="findAllMenu" resultType="com.biz.model.Pmodel.Pmenu">
+		SELECT
+			id,pid,text,href,classIcon,state
+		FROM
+			t_menu
+	</select>
+
+	<!-- 查询所有菜单列表 -->
+	<select id="showLeftMenuByRole" parameterType="java.util.Map"  resultType="com.biz.model.Pmodel.Pmenu">
+		SELECT
+		m.id,
+		m.pid,
+		m.text,
+		m.href,
+		IF(IFNULL(m.classIcon,'')='','fa fa-sun-o',IFNULL(m.classIcon,'')) as classIcon,
+		m.state
+		FROM
+		t_menu m
+		LEFT JOIN t_sys_role_menu rm ON m.id = rm.menu_id
+		WHERE
+		rm.role_id IN (${deep})
+		ORDER BY m.id
+	</select>
+
+	<select id="getList" parameterType="String" resultType="com.biz.model.Pmodel.basic.Parea">
+		select * from t_sys_area
+		where isdel = 0
+		and deep = #{deep}
+	</select>
+
+	<!--根据参数加载不同的区域信息-->
+	<select id="getListParm" resultType="com.biz.model.Pmodel.basic.Parea">
+		select * from t_sys_area where isdel = 0 and deep = #{deep}
+
+		<if test="id != null and  id != ''">
+			and id=#{id}
+		</if>
+	</select>
+
+	<!--根据参数加载不同的区域信息-->
+	<select id="getListParmByPid" resultType="com.biz.model.Pmodel.basic.Parea">
+		select * from t_sys_area where isdel = 0 and deep = #{deep}
+
+		<if test="pid != null and pid != ''">
+			and pid=#{pid}
+		</if>
+	</select>
+
+
+	<!-- 昨日用券数据统计体验店 -->
+	<select id="getUseGiftOffLineYes" parameterType="java.util.HashMap" resultType="double">
+		SELECT IFNULL(sum(a.point90),0) as  point_90
+		FROM BASE_90_DETAIL A
+		LEFT JOIN BASE_BRAND B ON A.brandId = B.BRAND_CODE
+		WHERE  TO_DAYS(NOW()) - TO_DAYS(a.createTime) = 1 AND A.ISDEL=0 AND SOURCE=3 and type!=2
+		<if test="agent_code != '' and agent_code != null">
+			AND B.agent_code REGEXP CONCAT('^', #{agent_code})
+		</if>
+		<if test="brand_code != '' and brand_code != null">
+			AND B.BRAND_CODE = #{brand_code}
+		</if>
+	</select>
+	<!-- 昨日用券数据统计微商城 -->
+	<select id="getUseGiftOnlineYes" parameterType="java.util.HashMap" resultType="double">
+		SELECT IFNULL(sum(a.point90),0) as  point_90
+		FROM BASE_90_DETAIL A
+		LEFT JOIN BASE_BRAND B ON A.brandId = B.BRAND_CODE
+		WHERE  TO_DAYS(NOW()) - TO_DAYS(a.createTime) = 1 AND A.ISDEL=0 AND SOURCE=3 and type=2
+		<if test="agent_code != '' and agent_code != null">
+			AND B.agent_code REGEXP CONCAT('^', #{agent_code})
+		</if>
+		<if test="brand_code != '' and brand_code != null">
+			AND B.BRAND_CODE = #{brand_code}
+		</if>
+	</select>
+	<!-- 昨日服务费数据统计 -->
+	<select id="getUseServiceYes" parameterType="java.util.HashMap" resultType="double">
+		SELECT IFNULL(sum(a.cash_total),0) as cash_total
+		FROM ORDER_MAIN_90 A
+		LEFT JOIN BASE_BRAND B ON A.brand_code = B.BRAND_CODE
+		WHERE  TO_DAYS(NOW()) - TO_DAYS(a.create_time) = 1 AND A.ISDEL=0
+		<if test="agent_code != '' and agent_code != null">
+			AND B.agent_code REGEXP CONCAT('^', #{agent_code})
+		</if>
+		<if test="brand_code != '' and brand_code != null">
+			AND B.BRAND_CODE = #{brand_code}
+		</if>
+	</select>
+	<!-- 昨日服务费数据统计 -->
+	<select id="getUseServiceMainYes" parameterType="java.util.HashMap" resultType="double">
+		SELECT IFNULL(sum(a.servicePayTotal),0) as cash_total
+		FROM ORDER_MAIN A
+		LEFT JOIN BASE_BRAND B ON A.brandCode = B.BRAND_CODE
+		WHERE  TO_DAYS(NOW()) - TO_DAYS(a.createTime) = 1 AND A.ISDEL=0
+		<if test="agent_code != '' and agent_code != null">
+			AND B.agent_code REGEXP CONCAT('^', #{agent_code})
+		</if>
+		<if test="brand_code != '' and brand_code != null">
+			AND B.BRAND_CODE = #{brand_code}
+		</if>
+	</select>
+
+	<!-- 昨日自动发券-->
+	<select id="getGiftCardAutoYes" parameterType="java.util.HashMap" resultType="double">
+
+		select ifnull(sum(point90),0) as card_auto from base_90_detail a
+		left join base_brand b on b.brand_code=a.brandId
+		WHERE a.isdel=0 and a.source=1  AND TO_DAYS(NOW()) - TO_DAYS(a.createTime) = 1
+		<if test="agent_code != '' and agent_code != null">
+			AND b.agent_code REGEXP CONCAT('^', #{agent_code})
+		</if>
+		<if test="brand_code !=null and brand_code != ''">
+			AND a.brandId = #{brand_code}
+		</if>
+		<if test="user_code !=null and user_code != ''">
+			AND a.userCode = #{user_code}
+		</if>
+	</select>
+	<!-- 昨日手动发券-->
+	<select id="getGiftCardPersonYes" parameterType="java.util.HashMap" resultType="double">
+
+		select ifnull(sum(point90),0) as card_auto from base_90_detail a
+		left join base_brand b on b.brand_code=a.brandId
+		WHERE a.isdel=0 and a.source=2  AND TO_DAYS(NOW()) - TO_DAYS(a.createTime) = 1
+		<if test="agent_code != '' and agent_code != null">
+			AND b.agent_code REGEXP CONCAT('^', #{agent_code})
+		</if>
+		<if test="brand_code !=null and brand_code != ''">
+			AND a.brandId = #{brand_code}
+		</if>
+		<if test="user_code !=null and user_code != ''">
+			AND a.userCode = #{user_code}
+		</if>
+	</select>
+	<!-- 昨日激活发券-->
+	<select id="getGiftCardJiHuoYes" parameterType="java.util.HashMap" resultType="double">
+
+		select ifnull(sum(point90),0) as card_auto from base_90_detail a
+		left join base_brand b on b.brand_code=a.brandId
+		WHERE a.isdel=0 and a.source=4  AND TO_DAYS(NOW()) - TO_DAYS(a.createTime) = 1
+		<if test="agent_code != '' and agent_code != null">
+			AND b.agent_code REGEXP CONCAT('^', #{agent_code})
+		</if>
+		<if test="brand_code !=null and brand_code != ''">
+			AND a.brandId = #{brand_code}
+		</if>
+		<if test="user_code !=null and user_code != ''">
+			AND a.userCode = #{user_code}
+		</if>
+	</select>
+
+
+
+	<!-- 昨日新增会员数据统计 -->
+	<select id="getNewUserYes" parameterType="java.util.HashMap" resultType="int">
+		SELECT IFNULL(COUNT(a.id),0) AS new_person
+		FROM base_user a
+		LEFT JOIN base_sales B on b.id=a.sales_id
+		LEFT JOIN base_shop c on c.sid=b.shopId
+		WHERE TO_DAYS(NOW()) - TO_DAYS(a.create_time) = 1 AND A.ISDEL=0 and a.state=1
+		<if test="brand_code !=null and brand_code != ''">
+			AND c.brand_code = #{brand_code}
+		</if>
+		<if test="user_code !=null and user_code != ''">
+			AND c.sid = #{user_code}
+		</if>
+	</select>
+
+	<!-- 会员数据统计 -->
+	<select id="getNewUserAll" parameterType="java.util.HashMap" resultType="int">
+		SELECT IFNULL(COUNT(a.id),0) AS new_person
+		FROM base_user a
+		LEFT JOIN base_sales B on b.id=a.sales_id
+		LEFT JOIN base_shop c on c.sid=b.shopId
+		WHERE  A.ISDEL=0 and a.state=1
+		<if test="brand_code !=null and brand_code != ''">
+			AND c.brand_code = #{brand_code}
+		</if>
+		<if test="user_code !=null and user_code != ''">
+			AND c.sid = #{user_code}
+		</if>
+	</select>
+    <!-- 会员数据统计 -->
+    <select id="getCanalUserAll" parameterType="java.util.HashMap" resultType="int">
+        SELECT IFNULL(COUNT(a.id),0) AS cancal_person
+        FROM base_user a
+		LEFT JOIN base_sales B on b.id=a.sales_id
+		LEFT JOIN base_shop c on c.sid=b.shopId
+        WHERE  A.ISDEL=0 and a.state=0
+		<if test="brand_code !=null and brand_code != ''">
+			AND c.brand_code = #{brand_code}
+		</if>
+		<if test="user_code !=null and user_code != ''">
+			AND c.sid = #{user_code}
+		</if>
+    </select>
+	<!-- 昨日用券人数统计 -->
+	<select id="getUseGiftPersonYes" parameterType="java.util.HashMap" resultType="int">
+		SELECT count(a.id) as  use_person
+		FROM (SELECT * FROM BASE_90_DETAIL GROUP BY openId ) A
+		LEFT JOIN BASE_BRAND B ON A.brandId = B.BRAND_CODE
+		WHERE  TO_DAYS(NOW()) - TO_DAYS(a.createTime) = 1 AND A.ISDEL=0 AND SOURCE=3
+		<if test="agent_code != '' and agent_code != null">
+			AND B.agent_code REGEXP CONCAT('^', #{agent_code})
+		</if>
+		<if test="brand_code != '' and brand_code != null">
+			AND B.BRAND_CODE = #{brand_code}
+		</if>
+	</select>
+
+	<!-- 昨日领券人数统计 -->
+	<select id="getGetGiftPersonYes" parameterType="java.util.HashMap" resultType="int">
+		SELECT count(a.id) as  get_person
+		FROM
+		(SELECT * FROM BASE_90_DETAIL GROUP BY openId ) A
+		LEFT JOIN BASE_BRAND B ON A.brandId = B.BRAND_CODE
+		WHERE  TO_DAYS(NOW()) - TO_DAYS(a.createTime) = 1 AND A.ISDEL=0 AND SOURCE!=3
+		<if test="agent_code != '' and agent_code != null">
+			AND B.agent_code REGEXP CONCAT('^', #{agent_code})
+		</if>
+		<if test="brand_code != '' and brand_code != null">
+			AND B.BRAND_CODE = #{brand_code}
+		</if>
+	</select>
+
+
+
+	<!-- 首页列表展示登录账户对应的代理商 -->
+	<select id="queryAgentss" parameterType="java.util.HashMap" resultType="com.biz.model.Pmodel.basic.Pagent">
+
+		<if test="identity==2"><!-- 代理商-->
+			SELECT * FROM BASE_AGENT WHERE ISDEL = 0
+			AND AGENT_CODE = #{identity_code}
+		</if>
+		<if test="identity==1"><!-- 管理员-->
+			SELECT * FROM BASE_AGENT WHERE ISDEL =0
+			ORDER BY SUBSTRING(AGENT_CODE,0,LENGTH(AGENT_CODE)-2),SORT
+		</if>
+	</select>
+<select id="queryGiftData" parameterType="java.util.Map" resultType="java.util.Map">
+    SELECT
+    ROUND(SUM(A.point90) / 100,2) AS count,
+    date_format(a.createTime,'%Y-%m-%d') AS date
+    FROM
+    BASE_90_DETAIL A
+    LEFT JOIN BASE_BRAND B ON B.BRAND_CODE = A.brandId
+    WHERE
+    A.ISDEL = 0
+    AND A.SOURCE IN (${source})
+    <if test="identity==2">
+        AND B.agent_code REGEXP CONCAT('^', #{identityCode})
+    </if>
+    <if test="agentId!=null and agentId!=''">
+		AND B.agent_code=#{agentId}
+    </if>
+	<if test="brandId!=null and brandId!=''">
+		AND B.BRAND_CODE=#{brandId}
+	</if>
+    AND date_format(a.createTime,'%Y-%m-%d') >=date_format(#{beginTime},'%Y-%m-%d')
+    AND date_format(a.createTime,'%Y-%m-%d') &lt;= date_format(#{endTime},'%Y-%m-%d')
+    GROUP BY
+    date_format(a.createTime,'%Y-%m-%d')
+    ORDER BY
+    date_format(a.createTime,'%Y-%m-%d') ASC
+</select>
+	<select id="queryBrandByAgent" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.basic.Pbrand">
+		select brand_code as brandCode,name  from base_brand where isdel=0
+		<if test="identity_code!=null and identity_code!='' and identity==2">
+			and agent_code=#{identity_code}
+		</if>
+		<if test="identity_code!=null and identity_code!='' and identity==3">
+			and brand_code=#{identity_code}
+		</if>
+		order by create_time desc
+	</select>
+
+
+
+	<select id="queryBrandDataYes" parameterType="java.util.Map" resultType="java.util.Map">
+		SELECT count(a.brand_code) as brandCount,SUM(a.sendAmount) as sendAmount,SUM(a.sendCount) as sendCount from(
+		select
+		sum(CASE WHEN b.isdel=0 THEN	b.point90	ELSE 0 END) as sendAmount,
+		SUM(CASE WHEN b.isdel=0 THEN	1	ELSE	0		END) as sendCount,
+		a.brand_code
+		from base_brand a
+		LEFT JOIN base_90_detail b ON a.brand_code = b.brandId and b.source in (1,2,4)
+		and TO_DAYS(NOW()) - TO_DAYS(b.createTime) = 1
+		where a.isdel=0
+		GROUP BY a.brand_code
+		)a
+	</select>
+
+	<select id="queryCoinDataAll" parameterType="java.util.Map" resultType="java.util.Map">
+		select
+		SUM(case when(a.source=1||a.source=3||a.source=6) then a.amount else 0 end) as czze,
+		SUM(case when(a.source=2) then a.amount else 0 end) as xfze,
+		SUM(case when(a.source=1||a.source=3||a.source=6) then 1 else 0 end) as czbs,
+		SUM(case when(a.source=2) then 1 else 0 end) as xfbs
+		from balance_sheet a
+		where a.source in (1,2,3,6)
+	</select>
+	<select id="queryCoinDataYes" parameterType="java.util.Map" resultType="java.util.Map">
+		select
+		SUM(case when(a.source=1||a.source=3||a.source=6) then a.amount else 0 end) as czze,
+		SUM(case when(a.source=2) then a.amount else 0 end) as xfze,
+		SUM(case when(a.source=1||a.source=3||a.source=6) then 1 else 0 end) as czbs,
+		SUM(case when(a.source=2) then 1 else 0 end) as xfbs
+		from balance_sheet a
+		where a.source in (1,2,3,6)
+		and TO_DAYS(NOW()) - TO_DAYS(a.createTime) = 1
+	</select>
+
+	<select id="getAreaById" parameterType="String" resultType="com.biz.model.Pmodel.basic.Parea">
+		select id,pid,text from t_sys_area where id=#{cityId}
+	</select>
+</mapper>

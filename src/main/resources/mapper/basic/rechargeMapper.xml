@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="rechargeDao">
+
+    <!-- 查询 -->
+    <select id="queryJiuLingCoinListForPage" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.basic.JiuLingCoinHistory">
+        SELECT A.amount as amount1,A.note as reason,(CASE A.type WHEN 0 THEN '充值金额' WHEN 1 THEN '赠送金额' WHEN 2 THEN '临时金额' ELSE '赠送金额' END)as type,
+        DATE_FORMAT(A.createTime,'%y-%m-%d %H:%i:%s') as createTime,U.phone,U.person_name as targetUser,D.loginName as opUser
+        FROM balance_sheet A
+        LEFT JOIN  BASE_USER U ON U.id= A.userId
+        LEFT JOIN T_SYS_USER D ON D.ID = A.opUser
+        WHERE A.state=1
+        <if test="userName != null and userName != ''"><!-- 关键词检索 -->
+            AND U.phone LIKE CONCAT(CONCAT('%', #{userName}),'%')
+        </if>
+        <if test="startDate!=null and startDate!=''">
+            <![CDATA[and TO_DAYS(A.createTime)>= TO_DAYS(#{startDate})]]>
+        </if>
+        <if test="endDate!=null and endDate!=''">
+            <![CDATA[and TO_DAYS(A.createTime)<= TO_DAYS(#{endDate})]]>
+        </if>
+        <if test="type!=null and type!=''">
+            AND A.type=#{type}
+        </if>
+        <if test="targetUser!=null and targetUser!=''">
+            AND U.person_name LIKE CONCAT(CONCAT('%', #{targetUser}),'%')
+        </if>
+        ORDER BY A.createTime DESC
+        limit #{begin},#{rows}
+    </select>
+
+    <select id="queryJiulingCoinCount" resultType="java.lang.Integer" parameterType="java.util.Map">
+        SELECT count(1) from balance_sheet  A LEFT JOIN  BASE_USER U ON U.id= A.userId
+        <where>
+             A.state=1
+            <if test="userName != null and userName != ''"><!-- 关键词检索 -->
+                AND U.phone LIKE CONCAT(CONCAT('%', #{userName}),'%')
+            </if>
+            <if test="startDate!=null and startDate!=''">
+                <![CDATA[and TO_DAYS(A.createTime)>= TO_DAYS(#{startDate})]]>
+            </if>
+            <if test="endDate!=null and endDate!=''">
+                <![CDATA[and TO_DAYS(A.createTime)<= TO_DAYS(#{endDate})]]>
+            </if>
+            <if test="type!=null and type!=''">
+                AND A.type=#{type}
+            </if>
+            <if test="targetUser!=null and targetUser!=''">
+                AND U.person_name LIKE CONCAT(CONCAT('%', #{targetUser}),'%')
+            </if>
+        </where>
+    </select>
+
+    <!--插入客户久零贝记录-->
+    <insert id="insertJiulingCoin" parameterType="java.util.HashMap">
+        INSERT INTO t_user_coin (id,userid) select #{id} as id,id as userid from base_user where phone=#{targetUser}
+    </insert>
+    <!-- 修改 -->
+    <update id="addTargetJiulingCoin" parameterType="com.biz.model.Pmodel.basic.JiuLingCoinHistory" >
+        UPDATE t_user_coin SET
+        <if test="type == 1">
+            giveAmount=giveAmount+round(#{amount}/100,2)
+        </if>
+        <if test="type == 0">
+            chargeAmount=chargeAmount+round(#{amount}/100,2)
+        </if>
+        WHERE userId in (select id from base_user where phone=#{targetUser})
+    </update>
+
+    <!--插入发贝记录-->
+    <insert id="insertJiuLingHistory" parameterType="com.biz.model.Pmodel.basic.JiuLingCoinHistory">
+        INSERT INTO balance_sheet (id,userId,amount,state,createTime,serialNum,orderNum,source,note,opUser,type)values
+        (#{id},#{targetUser},round(#{amount}/100,2),#{state},now(),#{serialNum},#{serialNum},#{source},#{reason},#{opUser},#{type})
+    </insert>
+
+    <select id="queryJiulingCoin" resultType="String" parameterType="com.biz.model.Pmodel.basic.JiuLingCoinHistory">
+        SELECT userId from t_user_coin where userId in (select id from base_user where phone=#{targetUser})
+    </select>
+
+    <select id="loadRCInfo" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+        SELECT
+        IFNULL(ROUND(SUM(a.amount),2),0) as amount,count(1) as count
+        FROM balance_sheet A
+        LEFT JOIN  BASE_USER U ON U.id= A.userId
+        LEFT JOIN T_SYS_USER D ON D.ID = A.opUser
+        WHERE A.state=1 and a.source!=4
+        <if test="userName != null and userName != ''"><!-- 关键词检索 -->
+            AND U.phone LIKE CONCAT(CONCAT('%', #{userName}),'%')
+        </if>
+        <if test="startdate!=null and startdate!=''">
+            <![CDATA[and TO_DAYS(A.createTime)>= TO_DAYS(#{startdate})]]>
+        </if>
+        <if test="enddate!=null and enddate!=''">
+            <![CDATA[and TO_DAYS(A.createTime)<= TO_DAYS(#{enddate})]]>
+        </if>
+        <if test="type!=null and type!=''">
+            AND A.type=#{type}
+        </if>
+        <if test="targetUser!=null and targetUser!=''">
+            AND U.person_name LIKE CONCAT(CONCAT('%', #{targetUser}),'%')
+        </if>
+    </select>
+
+    <select id="checkJiulingUser" parameterType="com.biz.model.Pmodel.basic.JiuLingCoinHistory" resultType="java.util.Map">
+        select * from base_user where phone=#{targetUser} limit 1
+    </select>
+</mapper>

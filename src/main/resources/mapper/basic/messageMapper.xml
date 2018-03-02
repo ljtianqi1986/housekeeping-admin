@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="messageDao">
+
+    <select id="queryMessages" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.basic.Pmessage">
+
+        select a.*,b.name business_name
+        FROM base_brand_msg as a
+        left JOIN base_brand as b on a.shop_code=b.brand_code
+        WHERE a.isdel=0
+        <if test="userName!=null and userName!=''">
+            and a.person_name like CONCAT(CONCAT('%', #{userName}),'%')
+        </if>
+        <if test="brandCode!=null and brandCode!=''">
+            and a.shop_code like CONCAT(CONCAT('%', #{brandCode}),'%')
+        </if>
+        ORDER BY a.create_time desc
+
+        limit #{begin},#{rows}
+    </select>
+
+    <select id="queryMessagesCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+        select count(1)
+        FROM base_brand_msg as a
+        left JOIN base_brand as b on a.shop_code=b.brand_code
+        WHERE a.isdel=0
+        <if test="userName!=null and userName!=''">
+            and a.person_name like CONCAT(CONCAT('%', #{userName}),'%')
+        </if>
+        <if test="brandCode!=null and brandCode!=''">
+            and a.shop_code like CONCAT(CONCAT('%', #{brandCode}),'%')
+        </if>
+
+    </select>
+
+    <update id="updateState" parameterType="com.biz.model.Pmodel.basic.Pmessage">
+        UPDATE base_brand_msg set state=#{state} where state=0 and id in (${updateId})
+    </update>
+
+    <select id="showSignDetail" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.basic.Pmessage">
+        SELECT a.point_90,a.createTime as create_time,b.person_name from sign_detail a
+        LEFT JOIN base_user b on a.openId=b.open_id
+        where 1=1
+        <if test="userName!=null and userName!=''">
+            and b.person_name like CONCAT(CONCAT('%', #{userName}),'%')
+        </if>
+        order by a.createTime desc
+        limit #{begin},#{rows}
+    </select>
+
+    <select id="showSignDetailCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+        SELECT count(1) from sign_detail a
+        LEFT JOIN base_user b on a.openId=b.open_id
+        where 1=1
+        <if test="userName!=null and userName!=''">
+            and b.person_name like CONCAT(CONCAT('%', #{userName}),'%')
+        </if>
+    </select>
+	
+</mapper>

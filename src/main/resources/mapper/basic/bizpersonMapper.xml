@@ -1,0 +1,723 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="bizpersonDao">
+
+	<select id="queryBizpersons" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.basic.Pbizperson">
+
+		SELECT * FROM BASE_BIZ_PERSON WHERE ISDEL = 0
+
+		<if test="userName != null and userName != ''"><!-- 关键词检索 -->
+			AND person_name LIKE CONCAT(CONCAT('%', #{userName}),'%')
+		</if>
+		<if test="phone != null and phone != ''"><!-- 关键词检索 -->
+			AND phone LIKE CONCAT(CONCAT('%', #{phone}),'%')
+		</if>
+		ORDER BY CREATE_TIME DESC
+
+		limit #{begin},#{rows}
+	</select>
+
+	<select id="queryBizpersonsCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+
+		SELECT count(1) FROM BASE_BIZ_PERSON WHERE ISDEL = 0
+
+		<if test="userName != null and userName != ''"><!-- 关键词检索 -->
+			AND person_name LIKE CONCAT(CONCAT('%', #{userName}),'%')
+		</if>
+		<if test="phone != null and phone != ''"><!-- 关键词检索 -->
+			AND phone LIKE CONCAT(CONCAT('%', #{phone}),'%')
+		</if>
+
+	</select>
+
+
+	<!-- 查询 -->
+	<select id="queryBizpersonsAll" parameterType="String" resultType="com.biz.model.Pmodel.basic.Pbizperson">
+		SELECT * FROM BASE_BIZ_PERSON WHERE ISDEL = 0
+		ORDER BY CREATE_TIME DESC
+	</select>
+
+
+	<select id="getBrandListWithBizCode" parameterType="String" resultType="com.biz.model.Pmodel.basic.Pbrand">
+        SELECT
+            a.brand_code as brandCode ,a.name,a.biz_code as bizCode
+        FROM
+            base_brand a
+        LEFT JOIN base_biz_person b ON a.biz_code = b.code
+        WHERE
+            a.isdel = 0
+        AND b.isdel = 0
+    </select>
+
+	<select id="personStatisticsPage" parameterType="java.util.HashMap"
+			resultType="com.biz.model.Pmodel.basic.PpersonStatistics">
+		SELECT tempT.*,(
+            SELECT
+            count(1)
+            FROM
+            base_shop
+            WHERE
+            brand_code = tempT.brandCode
+            AND isdel = 0
+            ) as posCount
+        FROM(
+			SELECT
+				temp.personName,
+				temp.brandCode,
+				temp.brandName,
+				sum(temp.giveTotal) AS giveTotal,
+				sum(temp.giveCount) AS giveCount,
+				sum(temp.getTotal) AS getTotal,
+				sum(temp.getCount) AS getCount,
+				temp.serviceRate,
+				TRUNCATE (
+					sum(temp.giveTotal) * temp.serviceRate,
+					2
+				) AS serviceTotal,
+				TRUNCATE (
+					sum(temp.getTotal) / sum(temp.giveTotal),
+					4
+				) AS giveGetScale
+			FROM
+				(
+					SELECT
+						c.person_name AS personName,
+						a.brandId AS brandCode,
+						b. NAME AS brandName,
+						sum(TRUNCATE(point90 / 100, 2)) AS giveTotal,
+						count(a.id) AS giveCount,
+						TRUNCATE (b.commission / 100, 2) AS serviceRate,
+						sum(TRUNCATE(point90 / 100, 2)) AS getTotal,
+						count(a.id) AS getCount
+					FROM
+						base_90_detail a
+					LEFT JOIN base_brand b ON a.brandId = b.brand_code
+					LEFT JOIN base_biz_person c ON b.biz_code = c. CODE
+					WHERE
+						a.source = 1
+					AND a.type = 0
+                    and b.isdel = 0
+                    AND c.isdel = 0
+					<if test="bizCode != null and bizCode != '' and bizCode != '-1'"><!-- 关键词检索 -->
+						and c. CODE = #{bizCode}
+					</if>
+					<if test="brandCode != null and brandCode != '' and brandCode != '-1'"><!-- 关键词检索 -->
+						and b.brand_code = #{brandCode}
+					</if>
+					<if test="startTime!=null and startTime!=''">
+						and a.createTime >= #{startTime}
+					</if>
+					<if test="endTime!=null and endTime!=''">
+						and a.createTime &lt; #{endTime}
+					</if>
+					GROUP BY
+						a.brandId
+					UNION ALL
+						SELECT
+							c.person_name AS personName,
+							b.brand_code AS brandCode,
+							b. NAME AS brandName,
+							sum(TRUNCATE(point_90 / 100, 2)) AS giveTotal,
+							count(a. CODE) AS giveCount,
+							TRUNCATE (b.commission / 100, 2) AS serviceRate,
+							0 AS getTotal,
+							0 AS getCount
+						FROM
+							rg_gift a
+						LEFT JOIN base_brand b ON a.brand_code = b.brand_code
+						LEFT JOIN base_biz_person c ON b.biz_code = c. CODE
+						WHERE
+							a.type = 0
+						AND a.isdel = 0
+	and b.isdel = 0
+	AND c.isdel = 0
+						<if test="bizCode != null and bizCode != '' and bizCode != '-1'"><!-- 关键词检索 -->
+							and c. CODE = #{bizCode}
+						</if>
+						<if test="brandCode != null and brandCode != '' and brandCode != '-1'"><!-- 关键词检索 -->
+							and b.brand_code = #{brandCode}
+						</if>
+						<if test="startTime!=null and startTime!=''">
+							and a.create_time >= #{startTime}
+						</if>
+						<if test="endTime!=null and endTime!=''">
+							and a.create_time &lt; #{endTime}
+						</if>
+						GROUP BY
+							b.brand_code
+						UNION ALL
+							SELECT
+								c.person_name AS personName,
+								b.brand_code AS brandCode,
+								b. NAME AS brandName,
+								0 AS giveTotal,
+								0 AS giveCount,
+								TRUNCATE (b.commission / 100, 2) AS serviceRate,
+								sum(TRUNCATE(point_90 / 100, 2)) AS getTotal,
+								count(a. CODE) AS getCount
+							FROM
+								rg_gift a
+							LEFT JOIN base_brand b ON a.brand_code = b.brand_code
+							LEFT JOIN base_biz_person c ON b.biz_code = c. CODE
+							WHERE
+								a.type = 0
+							AND a.isdel = 0
+							AND a.state = 1
+                            and b.isdel = 0
+                            AND c.isdel = 0
+							<if test="bizCode != null and bizCode != '' and bizCode != '-1'"><!-- 关键词检索 -->
+								and c. CODE = #{bizCode}
+							</if>
+							<if test="brandCode != null and brandCode != '' and brandCode != '-1'"><!-- 关键词检索 -->
+								and b.brand_code = #{brandCode}
+							</if>
+							<if test="startTime!=null and startTime!=''">
+								and a.create_time >= #{startTime}
+							</if>
+							<if test="endTime!=null and endTime!=''">
+								and a.create_time &lt; #{endTime}
+							</if>
+							GROUP BY
+								b.brand_code
+				) AS temp
+			GROUP BY
+				temp.brandCode
+			) as tempT
+		<if test="sortName != null and sortName != ''"><!-- 关键词检索 -->
+			order by tempT.${sortName} ${sortOrder}
+		</if>
+
+		LIMIT #{begin},#{rows}
+
+    </select>
+
+	<select id="personStatisticsCount" parameterType="java.util.HashMap" resultType="java.lang.Integer">
+		SELECT
+			count(tempCount.brandCode)
+		FROM
+			(
+				SELECT
+					temp.brandCode
+				FROM
+					(
+						SELECT
+							a.brandId AS brandCode
+						FROM
+							base_90_detail a
+						LEFT JOIN base_brand b ON a.brandId = b.brand_code
+						LEFT JOIN base_biz_person c ON b.biz_code = c. CODE
+						WHERE
+							a.source = 1
+						AND a.type = 0
+						and b.isdel = 0
+						AND c.isdel = 0
+						<if test="bizCode != null and bizCode != '' and bizCode != '-1'"><!-- 关键词检索 -->
+							and c. CODE = #{bizCode}
+						</if>
+						<if test="brandCode != null and brandCode != '' and brandCode != '-1'"><!-- 关键词检索 -->
+							and b.brand_code = #{brandCode}
+						</if>
+						<if test="startTime!=null and startTime!=''">
+							and a.createTime >= #{startTime}
+						</if>
+						<if test="endTime!=null and endTime!=''">
+							and a.createTime &lt; #{endTime}
+						</if>
+						GROUP BY
+							a.brandId
+						UNION ALL
+							SELECT
+								b.brand_code AS brandCode
+							FROM
+								rg_gift a
+							LEFT JOIN base_brand b ON a.brand_code = b.brand_code
+							LEFT JOIN base_biz_person c ON b.biz_code = c. CODE
+							WHERE
+								a.type = 0
+							AND a.isdel = 0
+							and b.isdel = 0
+							AND c.isdel = 0
+							<if test="bizCode != null and bizCode != '' and bizCode != '-1'"><!-- 关键词检索 -->
+								and c. CODE = #{bizCode}
+							</if>
+							<if test="brandCode != null and brandCode != '' and brandCode != '-1'"><!-- 关键词检索 -->
+								and b.brand_code = #{brandCode}
+							</if>
+							<if test="startTime!=null and startTime!=''">
+								and a.create_time >= #{startTime}
+							</if>
+							<if test="endTime!=null and endTime!=''">
+								and a.create_time &lt; #{endTime}
+							</if>
+							GROUP BY
+								b.brand_code
+							UNION ALL
+								SELECT
+									b.brand_code AS brandCode
+								FROM
+									rg_gift a
+								LEFT JOIN base_brand b ON a.brand_code = b.brand_code
+								LEFT JOIN base_biz_person c ON b.biz_code = c. CODE
+								WHERE
+									a.type = 0
+								AND a.isdel = 0
+								AND a.state = 1	<!--已领取 -->
+								and b.isdel = 0
+								AND c.isdel = 0
+								<if test="bizCode != null and bizCode != '' and bizCode != '-1'"><!-- 关键词检索 -->
+									and c. CODE = #{bizCode}
+								</if>
+								<if test="brandCode != null and brandCode != '' and brandCode != '-1'"><!-- 关键词检索 -->
+										and b.brand_code = #{brandCode}
+								</if>
+								<if test="startTime!=null and startTime!=''">
+									and a.create_time >= #{startTime}
+								</if>
+								<if test="endTime!=null and endTime!=''">
+									and a.create_time &lt; #{endTime}
+								</if>
+								GROUP BY
+									b.brand_code
+					) AS temp
+				GROUP BY
+					temp.brandCode
+			) AS tempCount
+    </select>
+
+
+    <select id="personStatisticsTotal" parameterType="java.util.HashMap" resultType="com.biz.model.Pmodel.basic.PpersonStatistics">
+        SELECT tempT.personName,
+        tempT.brandCode,
+        tempT.brandName,
+        sum(tempT.giveTotal) AS giveTotal,
+        sum(tempT.giveCount) AS giveCount,
+        sum(tempT.getTotal) AS getTotal,
+        sum(tempT.getCount) AS getCount,
+        sum(tempT.posCount) AS posCount,
+        tempT.serviceRate,
+        sum(tempT.serviceTotal) AS serviceTotal,
+        TRUNCATE (
+        sum(tempT.getTotal) / sum(tempT.giveTotal),
+        4
+        ) AS giveGetScale FROM(
+        SELECT
+        temp.personName,
+        temp.brandCode,
+        temp.brandName,
+        sum(temp.giveTotal) AS giveTotal,
+        sum(temp.giveCount) AS giveCount,
+        sum(temp.getTotal) AS getTotal,
+        sum(temp.getCount) AS getCount,
+        temp.serviceRate,
+        TRUNCATE (
+        sum(temp.giveTotal) * temp.serviceRate,
+        2
+        ) AS serviceTotal,
+        TRUNCATE (
+        sum(temp.getTotal) / sum(temp.giveTotal),
+        2
+        ) AS giveGetScale,
+        (
+        SELECT
+        count(1)
+        FROM
+        base_shop
+        WHERE
+        brand_code = temp.brandCode
+        AND isdel = 0
+        ) as posCount
+        FROM
+        (
+        SELECT
+        c.person_name AS personName,
+        a.brandId AS brandCode,
+        b. NAME AS brandName,
+        sum(TRUNCATE(point90 / 100, 2)) AS giveTotal,
+        count(a.id) AS giveCount,
+        TRUNCATE (b.commission / 100, 2) AS serviceRate,
+        sum(TRUNCATE(point90 / 100, 2)) AS getTotal,
+        count(a.id) AS getCount
+        FROM
+        base_90_detail a
+        LEFT JOIN base_brand b ON a.brandId = b.brand_code
+        LEFT JOIN base_biz_person c ON b.biz_code = c. CODE
+        WHERE
+        a.source = 1
+        AND a.type = 0
+        and b.isdel = 0
+        AND c.isdel = 0
+        <if test="bizCode != null and bizCode != '' and bizCode != '-1'"><!-- 关键词检索 -->
+            and c. CODE = #{bizCode}
+        </if>
+        <if test="brandCode != null and brandCode != '' and brandCode != '-1'"><!-- 关键词检索 -->
+            and b.brand_code = #{brandCode}
+        </if>
+        <if test="startTime!=null and startTime!=''">
+            and a.createTime >= #{startTime}
+        </if>
+        <if test="endTime!=null and endTime!=''">
+            and a.createTime &lt; #{endTime}
+        </if>
+        GROUP BY
+        a.brandId
+        UNION ALL
+        SELECT
+        c.person_name AS personName,
+        b.brand_code AS brandCode,
+        b. NAME AS brandName,
+        sum(TRUNCATE(point_90 / 100, 2)) AS giveTotal,
+        count(a. CODE) AS giveCount,
+        TRUNCATE (b.commission / 100, 2) AS serviceRate,
+        0 AS getTotal,
+        0 AS getCount
+        FROM
+        rg_gift a
+        LEFT JOIN base_brand b ON a.brand_code = b.brand_code
+        LEFT JOIN base_biz_person c ON b.biz_code = c. CODE
+        WHERE
+        a.type = 0
+        AND a.isdel = 0
+        and b.isdel = 0
+        AND c.isdel = 0
+        <if test="bizCode != null and bizCode != '' and bizCode != '-1'"><!-- 关键词检索 -->
+            and c. CODE = #{bizCode}
+        </if>
+        <if test="brandCode != null and brandCode != '' and brandCode != '-1'"><!-- 关键词检索 -->
+            and b.brand_code = #{brandCode}
+        </if>
+        <if test="startTime!=null and startTime!=''">
+            and a.create_time >= #{startTime}
+        </if>
+        <if test="endTime!=null and endTime!=''">
+            and a.create_time &lt; #{endTime}
+        </if>
+        GROUP BY
+        b.brand_code
+        UNION ALL
+        SELECT
+        c.person_name AS personName,
+        b.brand_code AS brandCode,
+        b. NAME AS brandName,
+        0 AS giveTotal,
+        0 AS giveCount,
+        TRUNCATE (b.commission / 100, 2) AS serviceRate,
+        sum(TRUNCATE(point_90 / 100, 2)) AS getTotal,
+        count(a. CODE) AS getCount
+        FROM
+        rg_gift a
+        LEFT JOIN base_brand b ON a.brand_code = b.brand_code
+        LEFT JOIN base_biz_person c ON b.biz_code = c. CODE
+        WHERE
+        a.type = 0
+        AND a.isdel = 0
+        AND a.state = 1
+        and b.isdel = 0
+        AND c.isdel = 0
+        <if test="bizCode != null and bizCode != '' and bizCode != '-1'"><!-- 关键词检索 -->
+            and c. CODE = #{bizCode}
+        </if>
+        <if test="brandCode != null and brandCode != '' and brandCode != '-1'"><!-- 关键词检索 -->
+            and b.brand_code = #{brandCode}
+        </if>
+        <if test="startTime!=null and startTime!=''">
+            and a.create_time >= #{startTime}
+        </if>
+        <if test="endTime!=null and endTime!=''">
+            and a.create_time &lt; #{endTime}
+        </if>
+        GROUP BY
+        b.brand_code
+        ) AS temp
+        GROUP BY
+        temp.brandCode
+        ) as tempT
+    </select>
+
+
+
+    <select id="personStatisticsTotalUser" parameterType="java.util.HashMap"
+            resultType="com.biz.model.Pmodel.basic.PpersonStatistics">
+        select TRUNCATE(temp.xfze/temp.czze, 4) as coinPayRate from (SELECT
+            SUM(case when(a.source=1||a.source=3||a.source=4||a.source=6) then a.amount else 0 end) as czze,
+            SUM(case when(a.source=2) then a.amount else 0 end) as xfze
+        FROM
+            balance_sheet a
+        LEFT JOIN base_user b ON a.userId = b.id
+        left join base_biz_person c on b.sales_id = c.code
+        where 1=1
+        and c.isdel = 0
+        <if test="bizCode != null and bizCode != '' and bizCode != '-1'"><!-- 关键词检索 -->
+            and c.CODE = #{bizCode}
+        </if>
+        <if test="startTime!=null and startTime!=''">
+            and a.createTime >= #{startTime}
+        </if>
+        <if test="endTime!=null and endTime!=''">
+            and a.createTime &lt; #{endTime}
+        </if>
+
+        )as temp
+    </select>
+
+
+    <select id="ppersonStatisticsUserCount" parameterType="java.util.HashMap"
+            resultType="com.biz.model.Pmodel.basic.PpersonStatistics">
+        select count(b.id) as memberCount
+        from base_user b
+        left join base_biz_person c on b.sales_id = c.code
+        where 1=1
+        and c.isdel = 0
+        <if test="bizCode != null and bizCode != '' and bizCode != '-1'"><!-- 关键词检索 -->
+            and c.CODE = #{bizCode}
+        </if>
+        <if test="startTime!=null and startTime!=''">
+            and b.create_time >= #{startTime}
+        </if>
+        <if test="endTime!=null and endTime!=''">
+            and b.create_time &lt; #{endTime}
+        </if>
+    </select>
+
+    <select id="loadCouponSum" parameterType="java.util.HashMap" resultType="java.util.Map">
+        SELECT
+            sum(temp.count) AS count,
+            temp.date AS date
+        FROM
+        (
+            SELECT
+                ROUND(SUM(A.point90) / 100, 2) AS count,
+                date_format(a.createTime, '%Y-%m-%d') AS date
+            FROM
+                base_90_detail a
+            LEFT JOIN base_brand b ON a.brandId = b.brand_code
+            LEFT JOIN base_biz_person c ON b.biz_code = c. CODE
+            WHERE
+              a.source = 1
+            AND a.type = 0
+            AND date_format(a.createTime,'%Y-%m-%d') >=date_format(#{beginTime},'%Y-%m-%d')
+            AND date_format(a.createTime,'%Y-%m-%d') &lt;= date_format(#{endTime},'%Y-%m-%d')
+            and b.isdel = 0
+            				AND c.isdel = 0
+            <if test="bizCode != null and bizCode != '' and bizCode != '-1'"><!-- 关键词检索 -->
+                and c. CODE = #{bizCode}
+            </if>
+            <if test="brandCode != null and brandCode != '' and brandCode != '-1'"><!-- 关键词检索 -->
+                and b.brand_code = #{brandCode}
+            </if>
+            GROUP BY
+              a.createTime
+            UNION ALL
+            SELECT
+                ROUND(SUM(A.point_90) / 100, 2) AS count,
+                date_format(a.create_time, '%Y-%m-%d') AS date
+            FROM
+              rg_gift a
+            LEFT JOIN base_brand b ON a.brand_code = b.brand_code
+            LEFT JOIN base_biz_person c ON b.biz_code = c. CODE
+            WHERE
+              a.type = 0
+            AND a.isdel = 0
+            					and b.isdel = 0
+            AND c.isdel = 0
+            AND date_format(a.create_time,'%Y-%m-%d') >=date_format(#{beginTime},'%Y-%m-%d')
+            AND date_format(a.create_time,'%Y-%m-%d') &lt;= date_format(#{endTime},'%Y-%m-%d')
+            <if test="bizCode != null and bizCode != '' and bizCode != '-1'"><!-- 关键词检索 -->
+                and c. CODE = #{bizCode}
+            </if>
+            <if test="brandCode != null and brandCode != '' and brandCode != '-1'"><!-- 关键词检索 -->
+                and b.brand_code = #{brandCode}
+            </if>
+            GROUP BY
+              a.create_time
+            ) AS temp
+        GROUP BY
+          date_format(temp.date, '%Y-%m-%d')
+        ORDER BY
+          date_format(temp.date, '%Y-%m-%d') ASC
+
+    </select>
+
+
+    <select id="loadMemberSum" parameterType="java.util.HashMap" resultType="java.util.Map">
+        select ifnull(count(b.id),0) as count,
+        date_format(b.create_time , '%Y-%m-%d') AS date
+        from base_user b
+        left join base_biz_person c on b.sales_id = c.code
+        where 1=1
+                and c.isdel = 0
+        <if test="bizCode != null and bizCode != '' and bizCode != '-1'"><!-- 关键词检索 -->
+            and c.CODE = #{bizCode}
+        </if>
+
+        GROUP BY
+          date_format(b.create_time, '%Y-%m-%d')
+        ORDER by date_format(b.create_time, '%Y-%m-%d') asc
+
+    </select>
+
+
+
+    <select id="loadPosSum" parameterType="java.util.HashMap" resultType="java.util.Map">
+        SELECT
+            ifnull(count(1),0) as count,
+            date_format(a.create_time, '%Y-%m-%d') AS date
+        FROM
+            base_shop a
+        LEFT JOIN base_brand b ON a.brand_code = b.brand_code
+        LEFT JOIN base_biz_person c ON b.biz_code = c.`code`
+        where a.isdel = 0
+                and c.isdel = 0
+        AND date_format(a.create_time,'%Y-%m-%d') >=date_format(#{beginTime},'%Y-%m-%d')
+        AND date_format(a.create_time,'%Y-%m-%d') &lt;= date_format(#{endTime},'%Y-%m-%d')
+        <if test="bizCode != null and bizCode != '' and bizCode != '-1'"><!-- 关键词检索 -->
+            and c.CODE = #{bizCode}
+        </if>
+        GROUP BY
+            date_format(a.create_time, '%Y-%m-%d')
+        ORDER BY
+            date_format(a.create_time, '%Y-%m-%d') ASC
+
+    </select>
+    
+    
+    <select id="getExcelBrandInfo" parameterType="java.util.HashMap"
+            resultType="com.biz.model.Pmodel.basic.PpersonStatistics">
+        SELECT tempT.*,(
+        SELECT
+        count(1)
+        FROM
+        base_shop
+        WHERE
+        brand_code = tempT.brandCode
+        AND isdel = 0
+        ) as posCount
+        FROM(
+        SELECT
+        temp.personName,
+        temp.brandCode,
+        temp.brandName,
+        sum(temp.giveTotal) AS giveTotal,
+        sum(temp.giveCount) AS giveCount,
+        sum(temp.getTotal) AS getTotal,
+        sum(temp.getCount) AS getCount,
+        temp.serviceRate,
+        TRUNCATE (
+        sum(temp.giveTotal) * temp.serviceRate,
+        2
+        ) AS serviceTotal,
+        TRUNCATE (
+        sum(temp.getTotal) / sum(temp.giveTotal),
+        4
+        ) AS giveGetScale
+        FROM
+        (
+        SELECT
+        c.person_name AS personName,
+        a.brandId AS brandCode,
+        b. NAME AS brandName,
+        sum(TRUNCATE(point90 / 100, 2)) AS giveTotal,
+        count(a.id) AS giveCount,
+        TRUNCATE (b.commission / 100, 2) AS serviceRate,
+        sum(TRUNCATE(point90 / 100, 2)) AS getTotal,
+        count(a.id) AS getCount
+        FROM
+        base_90_detail a
+        LEFT JOIN base_brand b ON a.brandId = b.brand_code
+        LEFT JOIN base_biz_person c ON b.biz_code = c. CODE
+        WHERE
+        a.source = 1
+        AND a.type = 0
+        and b.isdel = 0
+        AND c.isdel = 0
+        <if test="bizCode != null and bizCode != '' and bizCode != '-1'"><!-- 关键词检索 -->
+            and c. CODE = #{bizCode}
+        </if>
+        <if test="brandCode != null and brandCode != '' and brandCode != '-1'"><!-- 关键词检索 -->
+            and b.brand_code = #{brandCode}
+        </if>
+        <if test="startTime!=null and startTime!=''">
+            and a.createTime >= #{startTime}
+        </if>
+        <if test="endTime!=null and endTime!=''">
+            and a.createTime &lt; #{endTime}
+        </if>
+        GROUP BY
+        a.brandId
+        UNION ALL
+        SELECT
+        c.person_name AS personName,
+        b.brand_code AS brandCode,
+        b. NAME AS brandName,
+        sum(TRUNCATE(point_90 / 100, 2)) AS giveTotal,
+        count(a. CODE) AS giveCount,
+        TRUNCATE (b.commission / 100, 2) AS serviceRate,
+        0 AS getTotal,
+        0 AS getCount
+        FROM
+        rg_gift a
+        LEFT JOIN base_brand b ON a.brand_code = b.brand_code
+        LEFT JOIN base_biz_person c ON b.biz_code = c. CODE
+        WHERE
+        a.type = 0
+        AND a.isdel = 0
+        and b.isdel = 0
+        AND c.isdel = 0
+        <if test="bizCode != null and bizCode != '' and bizCode != '-1'"><!-- 关键词检索 -->
+            and c. CODE = #{bizCode}
+        </if>
+        <if test="brandCode != null and brandCode != '' and brandCode != '-1'"><!-- 关键词检索 -->
+            and b.brand_code = #{brandCode}
+        </if>
+        <if test="startTime!=null and startTime!=''">
+            and a.create_time >= #{startTime}
+        </if>
+        <if test="endTime!=null and endTime!=''">
+            and a.create_time &lt; #{endTime}
+        </if>
+        GROUP BY
+        b.brand_code
+        UNION ALL
+        SELECT
+        c.person_name AS personName,
+        b.brand_code AS brandCode,
+        b. NAME AS brandName,
+        0 AS giveTotal,
+        0 AS giveCount,
+        TRUNCATE (b.commission / 100, 2) AS serviceRate,
+        sum(TRUNCATE(point_90 / 100, 2)) AS getTotal,
+        count(a. CODE) AS getCount
+        FROM
+        rg_gift a
+        LEFT JOIN base_brand b ON a.brand_code = b.brand_code
+        LEFT JOIN base_biz_person c ON b.biz_code = c. CODE
+        WHERE
+        a.type = 0
+        AND a.isdel = 0
+        AND a.state = 1
+        and b.isdel = 0
+        AND c.isdel = 0
+        <if test="bizCode != null and bizCode != '' and bizCode != '-1'"><!-- 关键词检索 -->
+            and c. CODE = #{bizCode}
+        </if>
+        <if test="brandCode != null and brandCode != '' and brandCode != '-1'"><!-- 关键词检索 -->
+            and b.brand_code = #{brandCode}
+        </if>
+        <if test="startTime!=null and startTime!=''">
+            and a.create_time >= #{startTime}
+        </if>
+        <if test="endTime!=null and endTime!=''">
+            and a.create_time &lt; #{endTime}
+        </if>
+        GROUP BY
+        b.brand_code
+        ) AS temp
+        GROUP BY
+        temp.brandCode
+        ) as tempT
+        <if test="sortName != null and sortName != ''"><!-- 关键词检索 -->
+            order by tempT.${sortName} ${sortOrder}
+        </if>
+    </select>
+
+</mapper>

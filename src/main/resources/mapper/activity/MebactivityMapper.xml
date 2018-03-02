@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mebactivityMapper">
+    <select id="findMebactivityGrid" parameterType="com.framework.model.Params" resultType="com.biz.model.Pmodel.Pmebactivity">
+        SELECT * from (select a.*,b.path as imgUrl,IFNULL(c.mebCount,0) as mebCount from base_mebactivity a
+        LEFT JOIN base_pics b on a.picId=b.id
+        LEFT JOIN (select activityId,count(1) as mebCount from base_mebapply where LENGTH(activityId)>0 group by activityId) c on a.id=c.activityId
+        where a.isdel=0
+        <if test="searchtext != null and searchtext != ''">
+            and a.name like concat('%',#{searchtext},'%')
+        </if>
+        ORDER BY a.createTime DESC)a
+        WHERE a.id is not null
+        limit ${page},${rows}
+    </select>
+    <select id="findMebactivityCount" parameterType="com.framework.model.Params" resultType="int">
+        select count(a.id) from base_mebactivity a
+        LEFT JOIN base_pics b on a.picId=b.id
+        where a.isdel=0
+        <if test="searchtext != null and searchtext != ''">
+            and a.name like concat('%',#{searchtext},'%')
+        </if>
+    </select>
+
+    <select id="findMebactivityById" parameterType="String" resultType="com.biz.model.Pmodel.Pmebactivity">
+        select a.*,b.path as imgUrl from base_mebactivity a
+        LEFT JOIN base_pics b on a.picId=b.id
+        where a.id=#{id}
+    </select>
+
+    <select id="findLastDate" resultType="String">
+        SELECT max(lotteryTime) from base_mebactivity WHERE isdel=0
+    </select>
+
+    <select id="findPeriod" resultType="String">
+        SELECT ifnull(max(period),0) from base_mebactivity WHERE isdel=0
+    </select>
+
+    <select id="showMebActivityPerson" parameterType="java.util.Map" resultType="java.util.Map">
+SELECT b.person_name,b.phone,a.createTime,a.isGet from base_mebapply a
+LEFT JOIN base_user b on a.openId=b.open_id
+        where 1=1
+        <if test="id != null and id != ''">
+            and a.activityId=#{id}
+        </if>
+        <if test="person != null and person != ''">
+            and b.person_name  like concat('%',#{person},'%')
+        </if>
+        <if test="phone != null and phone != ''">
+            and b.phone  like concat('%',#{phone},'%')
+        </if>
+        <if test="isGet!=null and isGet!=''">
+          and a.isGet=#{isGet}
+        </if>
+        limit ${begin},${rows}
+    </select>
+
+    <select id="showMebActivityPersonCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+        SELECT count(1) from base_mebapply a
+        LEFT JOIN base_user b on a.openId=b.open_id
+        where 1=1
+        <if test="id != null and id != ''">
+            and a.activityId=#{id}
+        </if>
+        <if test="person != null and person != ''">
+            and b.person_name  like concat('%',#{person},'%')
+        </if>
+        <if test="phone != null and phone != ''">
+            and b.phone  like concat('%',#{phone},'%')
+        </if>
+        <if test="isGet!=null and isGet!=''">
+            and a.isGet=#{isGet}
+        </if>
+    </select>
+
+    <select id="getCountById" parameterType="String" resultType="java.lang.Integer">
+        SELECT
+	count(1)
+FROM
+	base_mebapply
+WHERE
+	activityId =#{id}
+    </select>
+
+    <update id="changeIsOpen" parameterType="java.util.Map">
+UPDATE base_mebactivity set isOpen=#{isOpen} where id=#{id}
+    </update>
+
+</mapper>

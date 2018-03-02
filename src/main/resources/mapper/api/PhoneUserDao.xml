@@ -1,0 +1,915 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="PhoneUserDao">
+<!--根据用户名密码获取用户数量-->
+<select id="getUserForLoginhashMap" parameterType="java.util.HashMap" resultType="java.lang.Integer">
+    SELECT
+    COUNT(1)
+    FROM
+    T_SYS_USER
+    WHERE
+    loginName = #{login_name}
+    AND PWD = #{pwd_md5}
+    AND ISLOCK = 0
+    AND ISDEL = 0
+    AND IDENTITY = 4
+</select>
+
+<!--根据用户名密码获取用户信息-->
+<select id="getUserInfoForLogin" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+    SELECT
+    a.id as user_code,
+    a.loginName as login_name,
+    a.pwd,
+    a.phone,
+    a.personName as person_name,
+    a.identity_code,
+    s.dxy_code,
+    a.type,
+    s.business_name as shop_name,
+    s.initial_money,
+    s.money_fixed,
+    s.logo_url,
+    s.is_90,
+    s.stockId as whareid
+    FROM
+    T_SYS_USER a
+    LEFT JOIN BASE_SHOP s ON s.sid = a.identity_code
+    WHERE
+    s.sid IS NOT NULL
+    AND a.ISLOCK = 0
+    AND a.ISDEL = 0
+    AND a.IDENTITY = 4
+    AND a.loginName = #{login_name}
+    AND a.pwd = #{pwd_md5}
+</select>
+
+<!-- 获取 -->
+<select id="getShopBySid" parameterType="String" resultType="com.biz.model.Pmodel.api.Shop">
+    SELECT S.*
+    FROM BASE_SHOP S
+    WHERE S.ISDEL = 0 AND S.SID = #{sid}
+</select>
+
+<!-- 获取 -->
+<select id="getOrderMain90ByCode" parameterType="String" resultType="java.lang.Integer">
+    SELECT count(1) FROM order_main_90 WHERE code=#{code} and ISDEL = 0
+</select>
+
+
+<select id="getSysUserIdByOpenId" parameterType="java.lang.String" resultType="java.lang.String">
+    select id from t_sys_user where openId=#{open_id}
+</select>
+
+
+<!-- 获取用户信息 -->
+<select id="getBaseUserByOpen_id" parameterType="String" resultType="com.biz.model.Pmodel.api.BaseUser">
+    SELECT u.*,IFNULL(c.giveAmount,0)as giveAmount,IFNULL(c.chargeAmount,0)as chargeAmount FROM base_user u
+    left join t_user_coin c on u.id=c.userId WHERE u.ISDEL = 0 and u.open_id=#{open_id}
+</select>
+
+
+
+<!-- 获取店铺数量 -->
+<select id="getShopCountByShopCode" parameterType="String" resultType="java.lang.Integer">
+    SELECT count(1)
+    FROM BASE_SHOP S
+    WHERE S.ISDEL = 0 AND S.SID = #{shopCode}
+</select>
+
+<select id="queryDailyOrderSummary"  parameterType="java.util.HashMap" resultType="java.util.HashMap">
+    SELECT
+    COUNT(a.id) AS count,
+    ifnull(SUM(ifnull(a.payTotal, 0)),0) AS cash_total,
+    ifnull(SUM(ifnull(a.giftCoupon, 0)),0) AS card_total,
+    'ALL' AS trade_type,
+    b.person_name AS person_name,
+    c.business_name AS shop_name
+    FROM
+    order_main a
+    LEFT JOIN sys_user b ON a.userCode = b.user_code
+    LEFT JOIN base_shop c ON a.shopCode = c.sid
+    WHERE
+    a.source = 1
+    AND a.isdel = 0
+    AND a.state = 1
+    AND a.shopCode = #{shopCode} AND TO_DAYS(a.createTime)=TO_DAYS(NOW())
+    <if test="userCode != null and userCode != ''">
+        AND a.userCode = #{userCode}
+    </if>
+    UNION
+    SELECT
+    COUNT(a.id) AS count,
+    ifnull(SUM(ifnull(a.payTotal, 0)),0) AS cash_total,
+    ifnull(SUM(ifnull(a.giftCoupon, 0)),0) AS card_total,
+    'WX' AS trade_type,
+    b.person_name AS person_name,
+    c.business_name AS shop_name
+    FROM
+    order_main a
+    LEFT JOIN sys_user b ON a.userCode = b.user_code
+    LEFT JOIN base_shop c ON a.shopCode = c.sid
+    WHERE
+    a.source = 1
+    AND a.isdel = 0
+    AND a.state = 1
+    AND a.paymentRoute = 3<!--微信支付-->
+    AND a.shopCode = #{shopCode} AND TO_DAYS(a.createTime)=TO_DAYS(NOW())
+    <if test="userCode != null and userCode != ''">
+        AND a.userCode = #{userCode}
+    </if>
+    UNION
+    SELECT
+    COUNT(a.id) AS count,
+    ifnull(SUM(ifnull(a.payTotal, 0)),0) AS cash_total,
+    ifnull(SUM(ifnull(a.giftCoupon, 0)),0) AS card_total,
+    'ALI' AS trade_type,
+    b.person_name AS person_name,
+    c.business_name AS shop_name
+    FROM
+    order_main a
+    LEFT JOIN sys_user b ON a.userCode = b.user_code
+    LEFT JOIN base_shop c ON a.shopCode = c.sid
+    WHERE
+    a.source = 1
+    AND a.isdel = 0
+    AND a.state = 1
+    AND a.paymentRoute = 2<!--支付宝支付-->
+    AND a.shopCode = #{shopCode} AND TO_DAYS(a.createTime)=TO_DAYS(NOW())
+    <if test="userCode != null and userCode != ''">
+        AND a.userCode = #{userCode}
+    </if>
+    UNION
+    SELECT
+    COUNT(a.id) AS count,
+    ifnull(SUM(ifnull(a.payTotal, 0)),0) AS cash_total,
+    ifnull(SUM(ifnull(a.giftCoupon, 0)),0) AS card_total,
+    'YZF' AS trade_type,
+    b.person_name AS person_name,
+    c.business_name AS shop_name
+    FROM
+    order_main a
+    LEFT JOIN sys_user b ON a.userCode = b.user_code
+    LEFT JOIN base_shop c ON a.shopCode = c.sid
+    WHERE
+    a.source = 1
+    AND a.isdel = 0
+    AND a.state = 1
+    AND a.paymentRoute = 6<!--.翼支付-->
+    AND a.shopCode = #{shopCode} AND TO_DAYS(a.createTime)=TO_DAYS(NOW())
+    <if test="userCode != null and userCode != ''">
+        AND a.userCode = #{userCode}
+    </if>
+    UNION
+    SELECT
+    COUNT(a.id) AS count,
+    ifnull(SUM(ifnull(a.payTotal, 0)),0) AS cash_total,
+    ifnull(SUM(ifnull(a.giftCoupon, 0)),0) AS card_total,
+    'OFFLINE' AS trade_type,
+    b.person_name AS person_name,
+    c.business_name AS shop_name
+    FROM
+    order_main a
+    LEFT JOIN sys_user b ON a.userCode = b.user_code
+    LEFT JOIN base_shop c ON a.shopCode = c.sid
+    WHERE
+    a.source = 1
+    AND a.isdel = 0
+    AND a.state = 1
+    AND a.paymentRoute = 7<!--.线下支付-->
+    AND a.shopCode = #{shopCode} AND TO_DAYS(a.createTime)=TO_DAYS(NOW())
+    <if test="userCode != null and userCode != ''">
+        AND a.userCode = #{userCode}
+    </if>
+    UNION
+    SELECT
+    COUNT(a.id) AS count,
+    ifnull(SUM(ifnull(a.payTotal, 0)),0) AS cash_total,
+    ifnull(SUM(ifnull(a.giftCoupon, 0)),0) AS card_total,
+    'UNIONPAY' AS trade_type,
+    b.person_name AS person_name,
+    c.business_name AS shop_name
+    FROM
+    order_main a
+    LEFT JOIN sys_user b ON a.userCode = b.user_code
+    LEFT JOIN base_shop c ON a.shopCode = c.sid
+    WHERE
+    a.source = 1
+    AND a.isdel = 0
+    AND a.state = 1
+    AND a.paymentRoute = 1<!--.银联支付-->
+    AND a.shopCode = #{shopCode} AND TO_DAYS(a.createTime)=TO_DAYS(NOW())
+    <if test="userCode != null and userCode != ''">
+        AND a.userCode = #{userCode}
+    </if>
+</select>
+
+<!-- 收银记录 分收银员|店长查询 -->
+<select id="queryRecordsByParam" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+    select temp3.* from (
+    SELECT * from ( select
+    temp90.*, ifnull(c.person_name, '') AS custom_name , '1' as orderType
+    from
+    (
+    select
+    a. code,
+    ifnull(ROUND(a.cash_total / 100), 0) AS cash_total,
+    ifnull(a.order_total / 100, 0) AS order_total,
+    a.state,
+    ifnull(b.personName, '') AS person_name,
+    a.create_time AS create_time,
+    a.trade_type AS trade_type,
+    ifnull(a.tickets_total / 100, 0) as payCoupon,
+    ifnull(a.pay_coin / 100, 0) as coinPayTotal,
+    a.open_id,
+    '' as salesName
+    FROM
+    order_main_90 a
+    LEFT JOIN t_sys_user b ON a.user_code = b.id
+    WHERE
+    a.isdel = 0
+    AND a.state = #{state}
+    <if test="trade_type != '' and trade_type!=null">
+        AND a.trade_type = #{trade_type}
+    </if>
+    <if test="user_code != '' and user_code!=null">
+        AND a.user_code = #{user_code}
+    </if>
+    <if test="open_id != '' and open_id!=null">
+        AND a.open_id = #{open_id}
+    </if>
+    <if test="shop_id != '' and shop_id!=null">
+        AND a.shop_code = #{shop_id}
+    </if>
+    <if test="orderCode != '' and orderCode != null">
+        <!-- and (a.code like concat('%',#{orderCode} ,'%') or c.phone like concat('%',#{orderCode} ,'%'))-->
+        and a.code like concat('%',#{orderCode} ,'%')
+    </if>
+    <if test="beginStamp != null and beginStamp != ''">
+        AND UNIX_TIMESTAMP(a.create_time) >= #{beginStamp}
+    </if>
+    <if test="endStamp != null and endStamp != ''">
+        AND UNIX_TIMESTAMP(a.create_time) &lt;= #{endStamp}
+    </if>
+    ORDER BY a.create_time DESC
+    ) as temp90
+    LEFT JOIN base_user c ON c.open_id = temp90.open_id
+    ) as temp2
+
+
+
+
+
+
+    union all select * from ( select tempMain.*, ifnull(c.person_name , '') AS custom_name,'2' as orderType from(SELECT
+    a.code as code,
+    ifnull(ROUND(a.servicePayTotal), 0) AS cash_total,
+    ifnull(a.payTotal, 0) AS order_total,
+    a.state,
+    ifnull(b.personName, '') AS person_name,
+    a.createTime AS create_time,
+
+    (
+    CASE a.paymentRoute
+    WHEN 2 THEN
+    'ZFB-MICROPAY'
+    WHEN 3 THEN
+    'MICROPAY'
+    WHEN 1 THEN
+    'UNIONPAY'
+    ELSE
+    'offline'
+    END
+    ) AS trade_type,
+    a.payCoupon,
+    a.coinPayTotal,
+    a.buyUserId,
+    IFNULL(c.name,'') as salesName
+    FROM
+    order_main a
+    LEFT JOIN t_sys_user b ON a.userCode = b.id
+    LEFT JOIN base_sales c on c.id=a.salesUserCode
+    WHERE
+    a.isdel = 0
+    AND a.source = 1
+    and a.state = #{mainState}
+
+    <if test="trade_type != '' and trade_type!=null">
+        AND a.paymentRoute = #{trade_type}
+    </if>
+    <if test="user_code != '' and user_code!=null">
+        AND a.userCode = #{user_code}
+    </if>
+    <if test="open_id != '' and open_id!=null">
+        AND a.openId = #{open_id}
+    </if>
+    <if test="shop_id != '' and shop_id!=null">
+        AND a.shopId = #{shop_id}
+    </if>
+    <if test="orderCode != '' and orderCode != null">
+        <!-- and (a.code like concat('%',#{orderCode} ,'%') or c.phone like concat('%',#{orderCode} ,'%'))-->
+        <!-- and (a.code like concat('%',#{orderCode} ,'%') or c.phone like concat('%',#{orderCode} ,'%'))-->
+        and a.code like concat('%',#{orderCode} ,'%')
+    </if>
+    <if test="beginStamp != null and beginStamp != ''">
+        AND UNIX_TIMESTAMP(a.createTime) >= #{beginStamp}
+    </if>
+    <if test="endStamp != null and endStamp != ''">
+        AND UNIX_TIMESTAMP(a.createTime) &lt;= #{endStamp}
+    </if>
+    order by a.createTime desc
+    ) as tempMain
+    LEFT JOIN base_user c ON c.id = tempMain.buyUserId
+
+    ) as temp1) as temp3
+
+    order by temp3.create_time desc
+    LIMIT ${pageNum},${pageSize}
+</select>
+
+<!-- 收银记录 总量 分收银员|店长查询  -->
+<select id="queryRecordsCountByParam" parameterType="java.util.HashMap" resultType="int">
+    select sum(temp3.count) from (select * from (SELECT
+    count(1) as count
+    FROM
+    order_main a
+    LEFT JOIN t_sys_user b ON a.userCode = b.id
+    <!--LEFT JOIN base_user c ON c.id = a.buyUserId-->
+    WHERE
+    a.isdel = 0
+    AND a.source = 1
+    and a.state = #{mainState}
+
+    <if test="trade_type != '' and trade_type!=null">
+        AND a.paymentRoute = #{trade_type}
+    </if>
+    <if test="user_code != '' and user_code!=null">
+        AND a.userCode = #{user_code}
+    </if>
+    <if test="shop_id != '' and shop_id!=null">
+        AND a.shopId = #{shop_id}
+    </if>
+    <if test="orderCode != '' and orderCode != null">
+        <!--and (a.code like concat('%',#{orderCode} ,'%') or c.phone like concat('%',#{orderCode} ,'%'))-->
+        and a.code like concat('%',#{orderCode} ,'%')
+    </if>
+    <if test="beginStamp != null and beginStamp != ''">
+        AND UNIX_TIMESTAMP(a.createTime) >= #{beginStamp}
+    </if>
+    <if test="endStamp != null and endStamp != ''">
+        AND UNIX_TIMESTAMP(a.createTime) &lt;= #{endStamp}
+    </if>
+
+    ) as temp1
+    union all SELECT * from ( select
+    count(1) as count
+    FROM
+    order_main_90 a
+    LEFT JOIN t_sys_user b ON a.user_code = b.id
+    <!--LEFT JOIN base_user c ON c.open_id = a.open_id-->
+    WHERE
+    a.isdel = 0
+    AND a.state = #{state}
+    <if test="trade_type != '' and trade_type!=null">
+        AND a.trade_type = #{trade_type}
+    </if>
+    <if test="user_code != '' and user_code!=null">
+        AND a.user_code = #{user_code}
+    </if>
+    <if test="shop_id != '' and shop_id!=null">
+        AND a.shop_code = #{shop_id}
+    </if>
+    <if test="orderCode != '' and orderCode != null">
+        <!--and (a.code like concat('%',#{orderCode} ,'%') or c.phone like concat('%',#{orderCode} ,'%'))-->
+        and a.code like concat('%',#{orderCode} ,'%')
+    </if>
+    <if test="beginStamp != null and beginStamp != ''">
+        AND UNIX_TIMESTAMP(a.create_time) >= #{beginStamp}
+    </if>
+    <if test="endStamp != null and endStamp != ''">
+        AND UNIX_TIMESTAMP(a.create_time) &lt;= #{endStamp}
+    </if>
+    ) as temp2) as temp3
+
+
+</select>
+
+
+<select id="queryMoneyByParam" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+    SELECT
+    a.code as code,
+    ifnull(a.cash_total, 0) AS cash_total,
+    ifnull(a.order_total, 0) AS order_total,
+    a.state,
+    ifnull(b.personName, '') AS person_name,
+    a.create_time AS create_time,
+    ifnull(c.person_name , '') AS custom_name,
+    a.pay_type AS trade_type,
+    a.tickets_total as payCoupon,
+    a.order_total coinPayTotal
+    FROM
+    order_main_90 a
+    LEFT JOIN t_sys_user b ON a.user_code = b.id
+    LEFT JOIN base_user c ON c.open_id = a.open_id
+    WHERE
+    a.isdel = 0
+    <!--AND a.source = 1-->
+    AND a.state = #{state}
+    <if test="trade_type != '' and trade_type!=null">
+        AND a.pay_type = #{trade_type}
+    </if>
+    <if test="user_code != '' and user_code!=null">
+        AND a.user_code = #{user_code}
+    </if>
+    <if test="shop_id != '' and shop_id!=null">
+        AND a.shop_code = #{shop_id}
+    </if>
+    <if test="orderCode != '' and orderCode != null">
+        and (a.code like concat('%',#{orderCode} ,'%') or c.phone like concat('%',#{telephone} ,'%'))
+    </if>
+    <!--<if test="telephone != '' and telephone != null">-->
+    <!--and c.phone = #{telephone}-->
+    <!--</if>-->
+    <if test="beginStamp != null and beginStamp != ''">
+        AND UNIX_TIMESTAMP(a.create_time) >= #{beginStamp}
+    </if>
+    <if test="endStamp != null and endStamp != ''">
+        AND UNIX_TIMESTAMP(a.create_time) &lt;= #{endStamp}
+    </if>
+    ORDER BY a.create_time DESC
+    LIMIT ${pageNum},${pageSize}
+</select>
+
+<select id="queryMoneyCountByParam" parameterType="java.util.HashMap" resultType="int">
+    SELECT count(1)
+    FROM
+    order_main_90 a
+    LEFT JOIN t_sys_user b ON a.user_code = b.id
+    LEFT JOIN base_user c ON c.open_id = a.open_id
+    WHERE
+    a.isdel = 0
+    <!--AND a.source = 1-->
+    AND a.state = #{state}
+    <if test="trade_type != '' and trade_type!=null">
+        AND a.pay_type = #{trade_type}
+    </if>
+    <if test="user_code != '' and user_code!=null">
+        AND a.user_code = #{user_code}
+    </if>
+    <if test="shop_id != '' and shop_id!=null">
+        AND a.shop_code = #{shop_id}
+    </if>
+    <if test="orderCode != '' and orderCode != null">
+        and (a.code like concat('%',#{orderCode} ,'%') or c.phone like concat('%',#{telephone} ,'%'))
+    </if>
+    <!--<if test="telephone != '' and telephone != null">-->
+    <!--and c.phone = #{telephone}-->
+    <!--</if>-->
+    <if test="beginStamp != null and beginStamp != ''">
+        AND UNIX_TIMESTAMP(a.create_time) >= #{beginStamp}
+    </if>
+    <if test="endStamp != null and endStamp != ''">
+        AND UNIX_TIMESTAMP(a.create_time) &lt;= #{endStamp}
+    </if>
+</select>
+
+<!-- 获取 -->
+<select id="getUserByCode" parameterType="java.util.Map" resultType="java.util.Map">
+    SELECT A.* FROM T_SYS_USER A
+    WHERE A.id=#{user_code} AND A.ISDEL=0
+</select>
+
+<update id="resetPwd"  parameterType="java.util.Map">
+    UPDATE T_SYS_USER SET PWD=#{new_pwd} WHERE ID=#{user_code}
+</update>
+
+<select id="getSalesList" parameterType="java.util.Map" resultType="java.util.Map">
+    SELECT id as user_code, name as person_name,phone,email,shopId as identity_code
+    FROM base_sales
+    WHERE shopId =#{sid}
+    AND isdel = 0
+</select>
+
+<!-- 获取 -->
+<select id="getBaseUserByPhone" parameterType="String" resultType="com.biz.model.Pmodel.api.BaseUser">
+    SELECT * FROM base_user
+    WHERE phone=#{phone} and ISDEL = 0
+    ORDER BY CREATE_TIME DESC
+    limit 1
+</select>
+
+
+<select id="getBrandOnlyByCode" parameterType="String" resultType="com.biz.model.Pmodel.basic.Brand">
+    SELECT A.* FROM BASE_BRAND A
+    WHERE A.ISDEL = 0 AND A.BRAND_CODE=#{brand_code}
+</select>
+
+<insert id="insertRgGift" parameterType="com.biz.model.Pmodel.api.RgGift"  useGeneratedKeys="true" keyProperty="code">
+    INSERT INTO	rg_gift(code,brand_code,shop_code,user_code,open_id,point_90,state,isdel,get_time,create_time,gift_type,coin_90,type)
+    VALUES (#{code},#{brand_code},#{shop_code},#{user_code},#{open_id},#{point_90},#{state},#{isdel},#{get_time},#{create_time},#{gift_type},#{coin_90},#{typeInt})
+</insert>
+
+<!-- 添加 -->
+<insert id="insertPayScene" parameterType="com.biz.model.Pmodel.api.PayScene"  useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO	pay_scene(main_code,type,pay_user_id,scene_type,ticketType)
+    VALUES (#{main_code},#{type},#{pay_user_id},#{scene_type},#{ticketType})
+</insert>
+
+<select id="getCoin_90ByTUserId" resultType="java.lang.Double">
+    select chargeAmount+giveAmount coin_90 from t_user_coin where userId=#{id}
+</select>
+
+
+<insert id="insertOrderMain90" parameterType="com.biz.model.Pmodel.api.OrderMain"  useGeneratedKeys="true" keyProperty="code">
+    INSERT INTO	order_main(id,allTotal,payTotal,cardCount,openId,userCode,shopCode,brandCode,state,payTime,backCode,backTime,backUserCode,paymentRoute,giftCoupon,payCoupon,payType,buyUserId)
+    VALUES (#{id},#{allTotal},#{payTotal},#{cardCount},#{openId},#{userCode},#{shopCode},#{brandCode},#{state},#{payTime},#{backCode},#{backTime},#{backUserCode},#{paymentRoute},#{giftCoupon},#{payCoupon},#{payType},#{buyUserId})
+</insert>
+
+<select id="getOrderMainByCode" parameterType="String" resultType="com.biz.model.Pmodel.api.OrderMain">
+    select * from order_main
+    where id=#{code}
+</select>
+
+<select id="getUserIdByOnlyCode" parameterType="String" resultType="String">
+    select ifnull(a.id,'') from base_user a
+    where a.only_code =#{only_code} or a.phone = #{only_code}
+    limit 0,1
+</select>
+
+<!-- 查询列表 -->
+<select id="queryIntegralListByUser"  resultType="com.biz.model.Pmodel.PhoneUserIntegral">
+    SELECT SOURCE,INTEGRAL,CREATE_TIME FROM SYS_USER_INTEGRAL WHERE ISDEL = 0 AND USER_CODE = #{user_code}
+    ORDER BY CREATE_TIME DESC
+    <if test="pageNum != null and pageSize != null ">
+        LIMIT #{pageNum},#{pageSize}
+    </if>
+</select>
+
+
+<select id="getWhareIdByShopId" parameterType="String" resultType="String">
+    select ifnull(a.stockId,'') from base_shop a where a.sid = #{shopId}
+</select>
+
+<!--获取主单信息-->
+<select id="qtGetOrderMainByCode" parameterType="String" resultType="com.biz.model.Pmodel.api.OrderBackMain">
+    SELECT
+    a. CODE,
+    b.person_name AS personName,
+    c.personName AS userName,
+    (
+    CASE a.paymentRoute
+    WHEN 2 THEN
+    '支付宝支付'
+    WHEN 3 THEN
+    '微信支付'
+    ELSE
+    '线下'
+    END
+    ) AS payType,
+    a.state,
+    DATE_FORMAT(
+    a.payTime,
+    '%Y-%m-%d %H:%i:%S'
+    ) AS payTime
+    FROM
+    order_main a
+    LEFT JOIN base_user b ON a.buyUserId = b.id
+    LEFT JOIN t_sys_user c ON a.userCode = c.id
+    WHERE
+    a. CODE = #{code}
+</select>
+
+<!--查询子单信息-->
+<select id="qtGetOrderDetailListByCode" parameterType="String" resultType="com.biz.model.Pmodel.api.OrderBackDetail">
+    SELECT
+    a.id as detailId,
+    a.goodsId AS goodsCode,
+    b. NAME AS goodsName,
+    c.id AS stockId,
+    CONCAT(
+    IFNULL(d. NAME, ''),
+    '　',
+    IFNULL(e. NAME, ''),
+    '　',
+    IFNULL(f. NAME, '')
+    ) AS goodsProperty,
+    a.count AS goodsCount,
+    a.goodsTotal AS couponPay,
+    IFNULL(a.coinPayTotal, 0) AS coinPay,
+    (
+    a.payTotal + IFNULL(a.coinPayTotal, 0)
+    ) AS servicePay,
+    a.payTotal AS ortherPay,
+    a.state AS detailState
+    FROM
+    order_detail a
+    LEFT JOIN base_wxgoods b ON a.goodsId = b.id
+    LEFT JOIN base_wxgoods_stock c ON a.stockId = c.id
+    LEFT JOIN base_standard AS d ON c.typesId1 = d.id
+    LEFT JOIN base_standard AS e ON c.typesId2 = e.id
+    LEFT JOIN base_standard AS f ON c.typesId3 = f.id
+    left join order_main g on a.orderId = g.id
+    WHERE
+    g.code = #{code}
+</select>
+
+
+
+<!--查询子单信息部分-->
+<select id="qtGetOrderDetailListByDetailIds" parameterType="String" resultType="com.biz.model.Pmodel.api.OrderBackDetail">
+    SELECT
+    a.id as detailId,
+    b.id AS goodsCode,
+    b. NAME AS goodsName,
+    c.id AS stockId,
+    CONCAT(
+    IFNULL(d. NAME, ''),
+    '　',
+    IFNULL(e. NAME, ''),
+    '　',
+    IFNULL(f. NAME, '')
+    ) AS goodsProperty,
+    a.count AS goodsCount,
+    a.goodsTotal AS couponPay,
+    IFNULL(a.coinPayTotal, 0) AS coinPay,
+    (
+    a.payTotal + IFNULL(a.coinPayTotal, 0)
+    ) AS servicePay,
+    a.payTotal AS ortherPay,
+    a.state AS detailState,
+    g.balance_type as balanceType
+    FROM
+    order_detail a
+    LEFT JOIN base_wxgoods b ON a.goodsId = b.id
+    LEFT JOIN base_wxgoods_stock c ON a.stockId = c.id
+    LEFT JOIN base_standard AS d ON c.typesId1 = d.id
+    LEFT JOIN base_standard AS e ON c.typesId2 = e.id
+    LEFT JOIN base_standard AS f ON c.typesId3 = f.id
+    left join order_main g on a.orderId = g.id
+    WHERE
+    a.id in (${_parameter})
+    and a.state != 6 <!--直接筛选已付款的 6:已退款-->
+</select>
+
+<select id="qtGetSumInfoByUserCode" parameterType="java.util.HashMap" resultType="com.biz.model.Pmodel.api.SectionSum">
+    SELECT
+    <if test="shopId != null and shopId != null ">
+        -1 as userCode,
+    </if>
+    <if test="userCode != null and userCode != null ">
+        c.userCode as userCode,
+    </if>
+    d.personName as userName,
+    count(1) as tradeCount,
+    round(sum(c.payCoupon),2) as payCoupons,
+    round(sum(c.servicePayTotal),2) serviceMoney,
+    round(sum(c.aliPayTotal),2) aliPayTotal,
+    round(sum(c.wxPayTotal),2) wxPayTotal,
+    round(sum(c.cashPayTotal),2) cashPayTotal,
+    round(sum(c.coinPayTotal),2) coinPayTotal,
+    round(sum(c.unionPayTotal),2) unionPayTotal
+    FROM(
+        SELECT
+        a.userCode,
+        a.shopId,
+        a.payCoupon,
+        a.servicePayTotal,
+        a.createTime,
+        (
+        CASE a.paymentRoute
+        WHEN 2 THEN
+        a.payTotal
+        ELSE
+        0
+        END
+        ) AS aliPayTotal,
+        (
+        CASE a.paymentRoute
+        WHEN 3 THEN
+        a.payTotal
+        ELSE
+        0
+        END
+        ) AS wxPayTotal,
+        (
+        CASE a.paymentRoute
+        WHEN 7 THEN
+        a.payTotal
+        ELSE
+        0
+        END
+        ) AS cashPayTotal,
+        (
+        CASE a.paymentRoute
+        WHEN 1 THEN
+        a.payTotal
+        ELSE
+        0
+        END
+        ) AS unionPayTotal,
+        a.coinPayTotal as coinPayTotal
+    FROM
+    order_main a
+    WHERE
+    1=1
+    <if test="shopId != null and shopId != null ">
+        and  a.shopId = #{shopId}
+    </if>
+    <if test="userCode != null and userCode != null ">
+        AND a.userCode = #{userCode}
+    </if>
+    <if test="startDate!=null and startDate!=''">
+        and a.createTime &gt; #{startDate}
+    </if>
+    <if test="endDate!=null and endDate!=''">
+        and a.createTime &lt; #{endDate}
+    </if>
+    AND a.state != 0
+    UNION ALL
+        SELECT
+        b.user_code,
+        b.shop_code,
+        b.tickets_total / 100,
+        b.cash_total / 100,
+        b.create_time,
+        (
+        CASE b.trade_type
+        WHEN 'ZFB-MICROPAY' THEN
+        ROUND(b.order_total / 100)
+        ELSE
+        0
+        END
+        ) AS aliPayTotal,
+        (
+        CASE b.trade_type
+        WHEN 'MICROPAY' THEN
+        ROUND(b.order_total / 100)
+        ELSE
+        0
+        END
+        ) AS wxPayTotal,
+        (
+        CASE b.trade_type
+        WHEN 'offline' THEN
+        ROUND(b.order_total / 100)
+        ELSE
+        0
+        END
+        ) AS cashPayTotal,
+        (
+        CASE b.trade_type
+        WHEN 'UNIONPAY' THEN
+        ROUND(b.order_total / 100)
+        ELSE
+        0
+        END
+        ) AS unionPayTotal,
+        ifnull(b.pay_coin / 100, 0) AS coinPayTotal
+    FROM
+    order_main_90 b
+    WHERE
+    1=1
+    <if test="shopId != null and shopId != null ">
+        AND b.shop_code = #{shopId}
+    </if>
+    <if test="userCode != null and userCode != null ">
+        AND b.user_code = #{userCode}
+    </if>
+    <if test="startDate!=null and startDate!=''">
+        and b.create_time &gt; #{startDate}
+    </if>
+    <if test="endDate!=null and endDate!=''">
+        and b.create_time &lt; #{endDate}
+    </if>
+    and
+    b.state != 0) c
+    LEFT JOIN t_sys_user d ON c.userCode = d.id
+    <if test="userCode != null and userCode != null ">
+        GROUP BY
+        c.userCode
+    </if>
+</select>
+
+<select id="qtGetBackSumInfoByUserCode" parameterType="java.util.HashMap" resultType="com.biz.model.Pmodel.api.SectionSum">
+    SELECT
+    <if test="shopId != null and shopId != null ">
+        -1 as userCode,
+    </if>
+    <if test="userCode != null and userCode != null ">
+        c.userCode as userCode,
+    </if>
+    count(1) as backCount,
+    round(sum(c.payCoupon),2) as backCoupons,
+    round(sum(c.servicePayTotal),2) backMoney
+    FROM(
+    SELECT
+    a.userCode,
+    a.shopId,
+    h.goodsTotal as payCoupon,
+    (ifnull(h.payTotal,0) + ifnull(h.coinPayTotal,0)) as  servicePayTotal,
+    a.createTime
+    FROM
+    order_detail h
+    left join order_main a on h.orderId = a.id
+    WHERE 1=1
+    <if test="shopId != null and shopId != null ">
+        AND a.shopId = #{shopId}
+    </if>
+    <if test="userCode != null and userCode != null ">
+        AND a.userCode = #{userCode}
+    </if>
+    <if test="startDate!=null and startDate!=''">
+        and h.backTime &gt; #{startDate}
+    </if>
+    <if test="endDate!=null and endDate!=''">
+        and h.backTime &lt; #{endDate}
+    </if>
+    AND h.state = 6
+    UNION ALL
+    SELECT
+    b.user_code,
+    b.shop_code,
+    b.tickets_total / 100,
+    b.order_total / 100,
+    b.create_time
+    FROM
+    order_main_90 b
+    WHERE 1=1
+    <if test="shopId != null and shopId != null ">
+        AND b.shop_code = #{shopId}
+    </if>
+    <if test="userCode != null and userCode != null ">
+        AND b.user_code = #{userCode}
+    </if>
+    <if test="startDate!=null and startDate!=''">
+        and b.back_time &gt; #{startDate}
+    </if>
+    <if test="endDate!=null and endDate!=''">
+        and b.back_time &lt; #{endDate}
+    </if>
+    and
+    b.state = 3) c
+    <if test="userCode != null and userCode != null ">
+        GROUP BY
+        c.userCode
+    </if>
+</select>
+
+<select id="qtGetGiveSumInfoByUserCode" parameterType="java.util.HashMap" resultType="com.biz.model.Pmodel.api.SectionSum">
+    SELECT
+    <if test="shopId != null and shopId != null ">
+        -1 as userCode,
+    </if>
+    <if test="userCode != null and userCode != null ">
+        user_code as userCode,
+    </if>
+    count(1) AS giveCount,
+    round(sum(point_90 / 100), 2) AS giveCoupons
+    FROM
+    rg_gift
+    WHERE
+    isdel = 0
+    <if test="shopId != null and shopId != null ">
+        AND shop_code = #{shopId}
+    </if>
+    <if test="userCode != null and userCode != null ">
+        AND user_code = #{userCode}
+    </if>
+    <if test="startDate!=null and startDate!=''">
+        AND create_time &gt; #{startDate}
+    </if>
+    <if test="endDate!=null and endDate!=''">
+        AND create_time &lt; #{endDate}
+    </if>
+    <if test="userCode != null and userCode != null ">
+        GROUP BY
+        user_code
+    </if>
+</select>
+
+
+    <select id="findPaySceneByOrderCode" parameterType="java.util.Map" resultType="java.util.Map">
+        select * from pay_scene where main_code=#{order_code} and isdel=0 and type=5
+    </select>
+
+
+    <select id="getPeriodizationListByBrandCode" parameterType="String" resultType="com.biz.model.Pmodel.api.PperiodizationSet">
+        select * from periodization_set
+        where brandCode = #{brandCode}
+        and isdel = 0
+    </select>
+
+
+    <select id="getLogIdByMainId" parameterType="String" resultType="String">
+        select id from periodization_detail_log
+        where mainId = #{mainId}
+    </select>
+
+
+    <select id="getBrandCodeByShopId" parameterType="String" resultType="String">
+        select ifnull(brand_code,'') from base_shop
+        where sid =  #{shopId}
+    </select>
+</mapper>

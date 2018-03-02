@@ -1,0 +1,798 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="BaseUserDao">
+
+	<!-- 获取 -->
+	<select id="queryBaseUserByOnlyCode" parameterType="String" resultType="com.biz.model.Pmodel.api.BaseUser">
+		SELECT b.*,IFNULL(c.chargeAmount,0) as chargeAmount,IFNULL(c.giveAmount,0) as giveAmount,IFNULL(c.extraAmount,0) as extraAmount FROM base_user b
+		left join t_user_coin c on b.id=c.userId
+		WHERE b.ISDEL = 0
+		and  (b.only_code = #{only_code} or b.phone=#{only_code})
+		ORDER BY b.CREATE_TIME DESC
+	</select>
+
+    <!-- 获取 -->
+    <select id="getOneBaseUser" parameterType="java.util.HashMap" resultType="com.biz.model.Pmodel.api.BaseUser">
+        SELECT * FROM base_user
+        WHERE ISDEL = 0
+        <if test="scan_ali_id != null and scan_ali_id != ''"><!-- 第一次扫码后绑定的支付宝id -->
+            and scan_ali_id = #{scan_ali_id}
+        </if>
+        <if test="scan_yi_id != null and scan_yi_id != ''"><!-- 第一次扫码后绑定的易支付的id -->
+            and scan_yi_id = #{scan_yi_id}
+        </if>
+        <if test="scan_yhk_id != null and scan_yhk_id != ''"><!-- 第一次扫码后绑定的银行卡的id -->
+            and scan_yhk_id = #{scan_yhk_id}
+        </if>
+        <if test="xy_openid != null and xy_openid != ''"><!-- 兴业的open_id -->
+            and xy_openid = #{xy_openid}
+        </if>
+        ORDER BY CREATE_TIME DESC limit 1
+    </select>
+
+
+    <select id="queryBaseUserByPhone" parameterType="String" resultType="com.biz.model.Pmodel.api.BaseUser">
+        SELECT b.*,IFNULL(c.chargeAmount,0) as chargeAmount,IFNULL(c.giveAmount,0) as giveAmount,IFNULL(c.extraAmount,0) as extraAmount FROM base_user b
+        left join t_user_coin c on b.id=c.userId
+        WHERE b.ISDEL = 0 and b.phone=#{phone}
+        ORDER BY b.CREATE_TIME DESC
+    </select>
+
+    <select id="getSysUserIdByOpenId" parameterType="java.lang.String" resultType="java.lang.String">
+        select id from base_user where open_id=#{openid}
+    </select>
+
+    <select id="getCoin_90ByTUserId" resultType="java.lang.Double">
+        select chargeAmount+giveAmount coin_90 from t_user_coin where userId=#{id}
+    </select>
+
+
+
+    <select id="findUserId" parameterType="java.util.Map" resultType="int">
+        select count(*) from base_user where id=#{userId} and isdel=0
+    </select>
+    <select id="findUserCoinId" parameterType="java.util.Map" resultType="int">
+        select count(*) from t_user_coin where userId=#{userId} and isdel=0
+    </select>
+    <insert id="saveUserCoin" parameterType="java.util.Map">
+        insert into t_user_coin (id,userId,chargeAmount,giveAmount,isdel,extraAmount) values(#{userCoinId},#{userId},0,0,0,0)
+    </insert>
+
+
+    <select id="getbalanceSheet90ByWx" parameterType="java.util.Map" resultType="java.util.Map">
+        select * from balance_sheet where userId=#{userId}  and state=#{state} and orderNum=#{orderNum} and source=#{source}
+    </select>
+
+    <!--用户90币余额是否够用判断 -->
+    <select id="checkUser90Coin" parameterType="java.util.Map"  resultType="java.util.Map">
+        select ifnull(chargeAmount,0) as chargeAmount,ifnull(giveAmount,0) as giveAmount,ifnull(extraAmount,0) as extraAmount from t_user_coin where userId=#{userId}
+    </select>
+
+    <select id="getOpenIdBySysUserId" parameterType="java.lang.String" resultType="java.lang.String">
+        select open_id from base_user where id=#{userid}
+    </select>
+
+
+
+
+
+    <insert id="saveSheet90" parameterType="java.util.Map">
+        INSERT into balance_sheet (id,userId,amount,state,createTime,serialNum,orderNum,source,note,type)
+        VALUES
+        (#{id},#{userId},#{amount},#{state},NOW(),#{serialNum},#{orderNum},#{source},#{note},#{type})
+    </insert>
+    <update id="doGiveCoin" parameterType="java.util.Map">
+        update t_user_coin set giveAmount=ifnull(giveAmount,0)+${amount} where userId=#{userId}
+    </update>
+    <update id="doRechargeCoin" parameterType="java.util.Map">
+        update t_user_coin set chargeAmount=ifnull(chargeAmount,0)+${amount} where userId=#{userId}
+    </update>
+    <update id="doCutCoin" parameterType="java.util.Map">
+        update t_user_coin set chargeAmount=ifnull(chargeAmount,0)-${amount} where userId=#{userId}
+    </update>
+    <update id="doCutCoinGive" parameterType="java.util.Map">
+        update t_user_coin set giveAmount=ifnull(giveAmount,0)-${amount} where userId=#{userId}
+    </update>
+    <select id="findSheetByMap" parameterType="java.util.Map" resultType="java.util.Map">
+        select ifnull(amount,0) as amount from balance_sheet where orderNum=#{orderNum} and source='2' and type='0'
+    </select>
+    <select id="findSheetByMapGive" parameterType="java.util.Map" resultType="java.util.Map">
+        select ifnull(amount,0) as amount from balance_sheet where orderNum=#{orderNum} and source='2' and type='1'
+    </select>
+    <select id="findSheetByGive" parameterType="java.util.Map" resultType="java.util.Map">
+        select ifnull(amount,0) as amount from balance_sheet where orderNum=#{orderNum} and source='3' and type='1'
+    </select>
+    <select id="findSheetByMapExtra" parameterType="java.util.Map" resultType="java.util.Map">
+        select ifnull(amount,0) as amount from balance_sheet where orderNum=#{orderNum} and source='2' and type='2'
+    </select>
+    <update id="doCutCoinExtra" parameterType="java.util.Map">
+        update t_user_coin set extraAmount=ifnull(extraAmount,0)-${amount} where userId=#{userId}
+    </update>
+    <update id="doGiveCoinExtra" parameterType="java.util.Map">
+        update t_user_coin set extraAmount=ifnull(extraAmount,0)+${amount} where userId=#{userId}
+    </update>
+
+
+    <select id="getUserDetail90ByWx" parameterType="java.util.Map" resultType="java.util.Map">
+        select * from base_90_detail where brandId=#{brand_code} and sourceId=#{order_code} and source=#{source} and openId=#{open_id} and ticketType=#{ticketType}
+        and isdel=0
+    </select>
+
+    <select id="getUserByOpenId" parameterType="java.util.Map"  resultType="java.util.Map">
+        select * from  base_user where open_id=#{open_id}
+    </select>
+    <select id="getUserBalanceByOpenId" parameterType="java.util.Map"  resultType="java.util.Map">
+        select a.id,(SUM(case when (b.ticketType=0  &amp;&amp;  b.isdel=0 &amp;&amp; b.`inOut`=1 &amp;&amp; b.state=0 &amp;&amp;date_format(b.expireTime,'%Y-%m-%d')>=date_format(now(),'%Y-%m-%d')) THEN b.point90Now ELSE 0 end)) as balance_90 ,
+        (SUM(case when (b.ticketType=1  &amp;&amp;  b.isdel=0 &amp;&amp; b.`inOut`=1 &amp;&amp; b.state=0 &amp;&amp;date_format(b.expireTime,'%Y-%m-%d')>=date_format(now(),'%Y-%m-%d')) THEN b.point90Now ELSE 0 end)) as balance_90_shop,
+(
+		SUM(
+			CASE
+			WHEN (
+				b.ticketType = 2
+				AND b.isdel = 0
+				AND b.`inOut` = 1
+				AND b.state = 0
+				AND date_format(b.expireTime, '%Y-%m-%d') >= date_format(now(), '%Y-%m-%d')
+			) THEN
+				b.point90Now
+			ELSE
+				0
+			END
+		)
+	) AS balance_90_experience
+        from base_user a
+LEFT JOIN base_90_detail b on b.openId=a.open_id
+where a.open_id=#{open_id}
+    </select>
+    <update id="cancalBalance90ByWx" parameterType="java.util.Map">
+            update base_user set balance_90=ifnull(balance_90,0)-ifnull(${balance_90},0),balance_90_total=ifnull(balance_90_total,0)-ifnull(${balance_90},0) where open_id=#{open_id}
+    </update>
+
+    <!-- 微商城接口更新用户90积分 -->
+    <update id="operBalance90ByWx1" parameterType="java.util.Map">
+        <if test="state==2">
+            update base_user set balance_90=ifnull(balance_90,0)+ifnull(${balance_90},0),balance_90_total=ifnull(balance_90_total,0)+ifnull(${balance_90},0) where open_id=#{open_id}
+        </if>
+        <if test="state==1">
+            update base_user set balance_90=ifnull(balance_90,0)-ifnull(${balance_90},0) where open_id=#{open_id}
+        </if>
+    </update>
+    <!-- 微商城接口更新用户90积分 -->
+    <update id="operUserShopBalance90ByWx" parameterType="java.util.Map">
+        <if test="state==2">
+            update base_user set balance_shopping_90=ifnull(balance_shopping_90,0)+ifnull(${balance_90},0),balance_90_total=ifnull(balance_90_total,0)+ifnull(${balance_90Total},0) where open_id=#{open_id}
+        </if>
+        <if test="state==1">
+            update base_user set balance_shopping_90=ifnull(balance_shopping_90,0)-ifnull(${balance_90},0),balance_90_total=ifnull(balance_90_total,0)-ifnull(${balance_90Total},0) where open_id=#{open_id}
+        </if>
+    </update>
+    <!-- 微商城接口更新用户90积分 -->
+    <update id="operBalance90ByWx" parameterType="java.util.Map">
+        <if test="state==2">
+            update base_user set balance_90=ifnull(balance_90,0)+ifnull(${balance_90},0),balance_90_total=ifnull(balance_90_total,0)+ifnull(${balance_90Total},0) where open_id=#{open_id}
+        </if>
+        <if test="state==1">
+            update base_user set balance_90=ifnull(balance_90,0)-ifnull(${balance_90},0),balance_90_total=ifnull(balance_90_total,0)-ifnull(${balance_90Total},0) where open_id=#{open_id}
+        </if>
+    </update>
+
+    <!-- 微商城接口更新用户体验券积分 -->
+    <update id="operExperienceBalance90ByWx" parameterType="java.util.Map">
+        <if test="state==2">
+            update base_user set balance_experience_90=ifnull(balance_experience_90,0)+ifnull(${balance_90},0),balance_90_total=ifnull(balance_90_total,0)+ifnull(${balance_90Total},0) where open_id=#{open_id}
+        </if>
+        <if test="state==1">
+            update base_user set balance_experience_90=ifnull(balance_experience_90,0)-ifnull(${balance_90},0),balance_90_total=ifnull(balance_90_total,0)-ifnull(${balance_90Total},0) where open_id=#{open_id}
+        </if>
+    </update>
+    <select id="getMaxBaseDetailId" parameterType="java.util.Map" resultType="int">
+        select max(id) as id from base_90_detail
+    </select>
+
+    <insert id="saveDetail90ByWx" parameterType="java.util.Map" keyProperty="id">
+        INSERT into base_90_detail (
+        brandId,
+        shopId,
+        sourceId,
+        userId,
+        userCode,
+        openId,
+        source,
+        sourceMsg,
+        type,
+        `inOut`,
+        point90,
+        isdel,
+        createTime,
+        orderTotal,
+        orderState,
+        tradeType,
+        commission,
+        point90Now,
+        state,
+        expireTime,
+        sorts,
+        ticketType
+        )
+        VALUES(
+        #{brand_code},
+        #{shop_code},
+        #{order_code},
+        #{userId},
+        #{user_code},
+        #{open_id},
+        #{source},
+        #{source_msg},
+        #{type},
+        ${state}-1,
+        ${balance_90},
+        0,
+        now(),
+        #{orderTotal},
+        #{orderState},
+        #{tradeType},
+        #{commission},
+        #{point90Now},
+        0,
+        #{expiryTime},
+        #{sorts},
+        #{ticketType}
+        )
+    </insert>
+
+    <!-- 获取 -->
+    <select id="getBaseUserByPhone" parameterType="String" resultType="com.biz.model.Pmodel.api.BaseUser">
+        SELECT * FROM base_user
+        WHERE phone=#{phone} and ISDEL = 0
+        ORDER BY CREATE_TIME DESC
+        limit 1
+    </select>
+
+    <select id="getBrandOnlyByCode" parameterType="String" resultType="com.biz.model.Pmodel.api.Brand">
+        SELECT A.* FROM BASE_BRAND A
+        WHERE A.ISDEL = 0 AND A.BRAND_CODE=#{brand_code}
+    </select>
+
+    <!-- 添加 -->
+    <insert id="insertRgGift" parameterType="com.biz.model.Pmodel.api.RgGift">
+        INSERT INTO	rg_gift(code,brand_code,shop_code,user_code,open_id,point_90,state,gift_type,isdel,get_time,create_time)
+        VALUES (#{code},#{brand_code},#{shop_code},#{user_code},#{open_id},#{point_90},#{state},#{gift_type},#{isdel},#{get_time},#{create_time})
+    </insert>
+
+
+    <!-- 增加用户90券 -->
+    <update id="add_balance_90" parameterType="java.util.Map">
+        UPDATE base_user SET balance_90 = balance_90 + #{balance_90},balance_90_total = balance_90_total + #{balance_90}
+        WHERE open_id=#{open_id} and ISDEL = 0
+    </update>
+
+    <!-- 减去90券  -->
+    <update id="minus_balance_90" parameterType="java.util.Map">
+        update base_brand set balance_90 = balance_90 - #{balance_90}
+        where brand_code=#{brand_code} and isdel = 0
+    </update>
+
+    <!-- 增加当前透支额度  -->
+    <update id="add_credit_now_90" parameterType="java.util.Map">
+        update base_brand set balance_90 = 0,credit_now_90 = credit_now_90 + #{minus}
+        where brand_code=#{brand_code} and isdel = 0
+    </update>
+
+    <!-- 减去当前透支额度  -->
+    <update id="minus_credit_now_90" parameterType="java.util.Map">
+        update base_brand set balance_90 = 0,credit_now_90 = credit_now_90 - #{minus}
+        where brand_code=#{brand_code} and isdel = 0
+    </update>
+
+    <!-- 添加 -->
+    <insert id="insertBase90Detail" parameterType="com.biz.model.Pmodel.basic.Base90Detail"  >
+        INSERT INTO	base_90_detail(brand_code,shop_code,source_code,open_id,source,source_msg,point_90,user_code,rg_code)
+        VALUES (#{brand_code},#{shop_code},#{source_code},#{open_id},#{source},#{source_msg},#{point_90},#{user_code},#{rg_code})
+    </insert>
+
+    <!-- 更新某个字段  -->
+    <update id="updateWhereRgGift" parameterType="java.util.Map">
+        UPDATE rg_gift
+        <set>
+            <if test="brand_code != null and brand_code != ''"><!-- 品牌主键 -->
+                brand_code = #{brand_code},
+            </if>
+            <if test="shop_code != null and shop_code != ''"><!-- 门店主键 -->
+                shop_code = #{shop_code},
+            </if>
+            <if test="user_code != null and user_code != ''"><!-- 营业员 -->
+                user_code = #{user_code},
+            </if>
+            <if test="open_id != null and open_id != ''"><!-- 领取人 -->
+                open_id = #{open_id},
+            </if>
+            <if test="point_90 != null and point_90 != ''"><!-- 久零券发放额 -->
+                point_90 = #{point_90},
+            </if>
+            <if test="state != null and state != ''"><!-- 0:未领取 1:已领取 -->
+                state = #{state},
+            </if>
+            <if test="isdel != null and isdel != ''"><!-- 删除标志0：未删除，1：删除 -->
+                isdel = #{isdel},
+            </if>
+            <if test="get_time != null and get_time != ''"><!-- 领取时间 -->
+                get_time = #{get_time},
+            </if>
+            <if test="create_time != null and create_time != ''"><!-- 获取时间 -->
+                create_time = #{create_time},
+            </if>
+        </set>
+        WHERE code=#{code} and isdel=0
+    </update>
+
+    <!-- 获取 -->
+    <select id="getRgGiftByCode" parameterType="String" resultType="com.biz.model.Pmodel.api.RgGift">
+        SELECT * FROM rg_gift WHERE code=#{code} and ISDEL = 0
+    </select>
+
+
+    <!--用户90余额是否够用判断 -->
+    <select id="checkUser90Balance" parameterType="java.util.Map"  resultType="java.util.Map">
+        <if test="type==1 or type==5">
+            select ifnull(balance_90,0)+ifnull(${balance_90},0) as balance from  base_user where open_id=#{open_id}
+        </if>
+        <if test="type==3">
+            select ifnull(balance_90,0)-ifnull(${balance_90},0) as balance from  base_user where open_id=#{open_id}
+        </if>
+    </select>
+
+    <update id="updateUserForBalance90Wrong" parameterType="java.util.Map">
+        UPDATE  base_user set isBalance90Wrong=1 where open_id=#{open_id}
+    </update>
+
+    <!-- 根据某些字段查询  -->
+    <select id="selectUsermsg" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.api.BaseUser">
+        SELECT * FROM base_user WHERE 1=1
+        <if test="open_id != null and open_id != ''"><!-- 用户的open_id -->
+            and open_id = #{open_id}
+        </if>
+    </select>
+
+    <!-- 添加 -->
+    <insert id="insertBaseUser" parameterType="com.biz.model.Pmodel.api.BaseUser" >
+        INSERT INTO	base_user(open_id,person_name,phone,cover,state,sex)
+        VALUES (#{open_id},#{person_name},#{phone},#{cover},#{state},#{sex})
+    </insert>
+    <!-- 添加 -->
+    <insert id="saveUserInfo" parameterType="java.util.Map" >
+        INSERT INTO	base_user(id,open_id,person_name,cover,state,sex,unionId,appid)
+        VALUES (#{id},#{openid},#{nickname},#{headimgurl},#{subscribe},#{sex},#{unionid},#{appid})
+    </insert>
+    <!-- 添加 -->
+    <insert id="insertBase90UserDetail" parameterType="com.biz.model.Pmodel.basic.Base90Detail"  >
+        INSERT INTO	base_90_user_detail(brand_code,shop_code,source_code,open_id,source,source_msg,point_90,user_code)
+        VALUES (#{brand_code},#{shop_code},#{source_code},#{open_id},#{source},#{source_msg},#{point_90},#{user_code})
+    </insert>
+
+    <!-- 获取 -->
+    <select id="getOfflineCardDetailByCard_code" parameterType="String" resultType="com.biz.model.Pmodel.offlineCard.OfflineCardDetail">
+
+        SELECT a.*,b.brandId as brandCode,b.typeId,c.isFirst FROM offline_card_90_detail a
+        LEFT JOIN offline_card_90_grant b on a.id=b.detailId
+        LEFT JOIN offline_card_90_type c on c.id=b.typeId
+        WHERE a.cardCode=#{card_code}
+        ORDER BY a.createTime DESC
+        LIMIT 1
+    </select>
+
+    <!-- 获取 -->
+    <select id="getOfflineCardByCode" parameterType="String" resultType="com.biz.model.Pmodel.offlineCard.PofflineCard">
+        SELECT * FROM offline_card_90
+        WHERE id=#{code} and ISDEL = 0
+    </select>
+
+    <!-- 更新某个字段  -->
+    <update id="updateWhereOfflineCardDetail" parameterType="java.util.Map">
+        UPDATE offline_card_90_detail
+        <set>
+            <if test="main_code != null and main_code != ''"><!-- 主表code -->
+                mainId = #{main_code},
+            </if>
+            <if test="card_code != null and card_code != ''"><!-- 实体卡密钥 -->
+                cardCode = #{card_code},
+            </if>
+            <if test="open_id != null and open_id != ''"><!-- 充值人即使用人 -->
+                openId = #{open_id},
+            </if>
+            <if test="state != null and state != ''"><!-- 0:待充值1:已充值 -->
+                state = #{state},
+            </if>
+            <if test="user_time != null and user_time != ''"><!-- 充值时间 -->
+                useTime = #{user_time},
+            </if>
+            <if test="create_time != null and create_time != ''"><!-- 创建时间 -->
+                createTime = #{create_time},
+            </if>
+        </set>
+        WHERE id=#{id}
+    </update>
+
+    <!-- 删除 -->
+    <update id="add_card_use_count" parameterType="String">
+        UPDATE offline_card_90 SET cardUseCount = cardUseCount + 1
+        WHERE id=#{main_code} and isdel=0
+    </update>
+    <!-- 小程序接口领取金额-->
+    <select id="selectOrtherBalanceInByunionId" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.basic.Base90Detail">
+        select * from (
+        SELECT t.id,t.brandId as brand_code,t.shopId as shop_code,t.sourceId as source_code,t.userCode as user_code,
+        t.openId as open_id,t.source,t.sourceMsg as source_msg,round(t.point90/100,2) as point90,t.isdel,t.createTime as create_time,ifnull(b.business_name,'') as business_name,c.unionId FROM base_90_detail t
+        left join base_shop b on t.shopId = b.sid  left join base_user c on t.openId = c.open_id
+        WHERE t.isdel=0 and t.state=0  and c.unionId=#{unionId}
+        <if test="state == 'in'"><!-- 领取 -->
+            and t.inOut=1
+        </if>
+
+        <if test="brand_code != null and brand_code != ''"><!-- 品牌主键 -->
+            and t.brandId = #{brand_code}
+        </if>
+        <if test="shop_code != null and shop_code != ''"><!-- 门店主键 -->
+            and t.shopId = #{shop_code}
+        </if>
+        <if test="source_code != null and source_code != ''"><!-- 0：充值code；1：订单code;2；收银员code；3订单code -->
+            and t.sourceId = #{source_code}
+        </if>
+        <if test="open_id != null and open_id != ''"><!-- 领取人 -->
+            and t.openId = #{open_id}
+        </if>
+        <if test="source ==3"><!-- 0、充值；1:自动；2人工；3消券 -->
+            and t.inOut=1
+        </if>
+        <if test="source_msg != null and source_msg != ''"><!-- 说明 -->
+            and t.sourceMsg = #{source_msg}
+        </if>
+        <if test="point_90 != null and point_90 != ''"><!-- 久零券发放额 -->
+            and t.point90 = #{point_90}
+        </if>
+        )as temp
+        ORDER BY temp.CREATE_TIME DESC
+        <if test="pageNum != null and pageSize != null ">
+            LIMIT #{pageNum},#{pageSize}
+        </if>
+    </select>
+
+    <!-- 小程序领取总额  -->
+    <select id="int_sumByUnionId" parameterType="java.util.Map" resultType="String">
+        select sum(point_90) from (
+        SELECT sum(round(a.point90/100,2)) as point_90 FROM base_90_detail a ,base_user b
+        WHERE a.isdel=0 and a.openId = b.open_id and a.state=0
+        and a.inOut=1 and b.unionId = #{unionId}
+        ) as temp
+        <!-- and  ISDEL = 0 -->
+    </select>
+
+    <!-- 第三方接口领取金额 -->
+    <select id="selectOrtherBalanceIn" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.basic.Base90Detail">
+
+        select * from (
+        SELECT t.id,t.brandId as brand_code,t.shopId as shop_code,t.sourceId as source_code,t.userCode as user_code,
+        t.openId as open_id,t.source,t.sourceMsg as source_msg,t.point90 as point_90,t.isdel,t.createTime as create_time,b.business_name FROM base_90_detail t
+        left join base_shop b on t.shopId = b.sid and b.isdel=0
+        WHERE t.isdel=0 and t.state=0
+
+        <if test="state == 'in'"><!-- 领取 -->
+          and t.inOut=1
+        </if>
+
+        <if test="brand_code != null and brand_code != ''"><!-- 品牌主键 -->
+            and t.brandId = #{brand_code}
+        </if>
+        <if test="shop_code != null and shop_code != ''"><!-- 门店主键 -->
+            and t.shopId = #{shop_code}
+        </if>
+        <if test="source_code != null and source_code != ''"><!-- 0：充值code；1：订单code;2；收银员code；3订单code -->
+            and t.sourceId = #{source_code}
+        </if>
+        <if test="open_id != null and open_id != ''"><!-- 领取人 -->
+            and t.openId = #{open_id}
+        </if>
+        <if test="unionId != null and unionId != ''"><!-- 领取人 -->
+            and t.unionId = #{unionId}
+        </if>
+        <if test="source ==3"><!-- 0、充值；1:自动；2人工；3消券 -->
+            and t.inOut=1
+        </if>
+        <if test="source_msg != null and source_msg != ''"><!-- 说明 -->
+            and t.sourceMsg = #{source_msg}
+        </if>
+        <if test="point_90 != null and point_90 != ''"><!-- 久零券发放额 -->
+            and t.point90 = #{point_90}
+        </if>
+        )as temp
+        ORDER BY temp.CREATE_TIME DESC
+        <if test="pageNum != null and pageSize != null ">
+            LIMIT #{pageNum},#{pageSize}
+        </if>
+    </select>
+
+    <!-- 领取总额  -->
+    <select id="int_sum" parameterType="java.util.Map" resultType="int">
+        select sum(point_90) from (
+        SELECT sum(a.point90) as point_90 FROM base_90_detail a
+        WHERE a.isdel=0 and a.openId = #{open_id} and a.state=0
+        and a.inOut=1
+        ) as temp
+        <!-- and  ISDEL = 0 -->
+    </select>
+
+    <!--小程序退款金额-->
+    <select id="selectOrtherBalanceOutByunionId" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.basic.Base90Detail">
+        select * from (
+        SELECT t.id,t.brandId as brand_code,t.shopId as shop_code,t.sourceId as source_code,t.userCode as user_code,
+        t.openId as open_id,t.source,t.sourceMsg as source_msg,round(t.point90/100,2) as point90,t.isdel,t.createTime as create_time,ifnull(b.business_name,'') as business_name FROM base_90_detail t
+        left join base_shop b on t.shopId = b.sid left join base_user c on t.openId = c.open_id
+        WHERE t.isdel=0 and t.state=0 and unionId=#{unionId}
+        <if test="brand_code != null and brand_code != ''"><!-- 品牌主键 -->
+            and t.brandId = #{brand_code}
+        </if>
+        <if test="shop_code != null and shop_code != ''"><!-- 门店主键 -->
+            and t.shopId = #{shop_code}
+        </if>
+        <if test="source_code != null and source_code != ''"><!-- 0：充值code；1：订单code;2；收银员code；3订单code -->
+            and t.sourceId = #{source_code}
+        </if>
+        <if test="open_id != null and open_id != ''"><!-- 领取人 -->
+            and t.openId = #{open_id}
+        </if>
+        <if test="source ==3"><!-- 0、充值；1:自动；2人工；3消券 -->
+            and t.inOut=0
+        </if>
+        <if test="source_msg != null and source_msg != ''"><!-- 说明 -->
+            and t.sourceMsg = #{source_msg}
+        </if>
+        <if test="point_90 != null and point_90 != ''"><!-- 久零券发放额 -->
+            and t.point90 = #{point_90}
+        </if>
+        )as temp
+        ORDER BY temp.create_time DESC
+        <if test="pageNum != null and pageSize != null ">
+            LIMIT #{pageNum},#{pageSize}
+        </if>
+
+    </select>
+
+    <!--小程序 消费总额  -->
+    <select id="out_sumByunionId" parameterType="java.util.Map" resultType="String">
+        select sum(point_90) from (
+        SELECT sum(ABS(round(point90/100,2))) as point_90 FROM base_90_detail a,base_user b
+        WHERE a.isdel=0 and a.openId = b.open_id and a.state=0
+        and a.inOut=0 and b.unionId=#{unionId}
+        ) as temp
+
+
+        <!-- and  ISDEL = 0 -->
+    </select>
+
+
+    <!-- 第三方接口退款金额 -->
+    <select id="selectOrtherBalanceOut" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.basic.Base90Detail">
+        select * from (
+        SELECT t.id,t.brandId as brand_code,t.shopId as shop_code,t.sourceId as source_code,t.userCode as user_code,
+        t.openId as open_id,t.source,t.sourceMsg as source_msg,t.point90 as point_90,t.isdel,t.createTime as create_time,b.business_name FROM base_90_detail t
+        left join base_shop b on t.shopId = b.sid and b.isdel=0
+        WHERE t.isdel=0 and t.state=0
+        <if test="brand_code != null and brand_code != ''"><!-- 品牌主键 -->
+            and t.brandId = #{brand_code}
+        </if>
+        <if test="shop_code != null and shop_code != ''"><!-- 门店主键 -->
+            and t.shopId = #{shop_code}
+        </if>
+        <if test="source_code != null and source_code != ''"><!-- 0：充值code；1：订单code;2；收银员code；3订单code -->
+            and t.sourceId = #{source_code}
+        </if>
+        <if test="open_id != null and open_id != ''"><!-- 领取人 -->
+            and t.openId = #{open_id}
+        </if>
+        <if test="source ==3"><!-- 0、充值；1:自动；2人工；3消券 -->
+            and t.inOut=0
+        </if>
+        <if test="source_msg != null and source_msg != ''"><!-- 说明 -->
+            and t.sourceMsg = #{source_msg}
+        </if>
+        <if test="point_90 != null and point_90 != ''"><!-- 久零券发放额 -->
+            and t.point90 = #{point_90}
+        </if>
+        )as temp
+        ORDER BY temp.create_time DESC
+        <if test="pageNum != null and pageSize != null ">
+            LIMIT #{pageNum},#{pageSize}
+        </if>
+
+    </select>
+
+    <!-- 消费总额  -->
+    <select id="out_sum" parameterType="java.util.Map" resultType="int">
+        select sum(point_90) from (
+        SELECT sum(ABS(a.point90)) as point_90 FROM base_90_detail a
+        WHERE a.openId = #{open_id} and a.state=0
+        and a.inOut=0
+        ) as temp
+
+
+        <!-- and  ISDEL = 0 -->
+    </select>
+
+    <!-- 更新用户 only_code -->
+    <update id="updateBaseUserOnlyCode" parameterType="java.util.Map">
+        UPDATE BASE_USER SET only_code=#{only_code} WHERE OPEN_ID = #{open_id}
+    </update>
+
+    <!--t通过unionId 更新用户 only_code -->
+    <update id="updateBaseUserOnlyCodeByUnioId" parameterType="java.util.Map">
+        UPDATE BASE_USER SET only_code=#{only_code} WHERE unionId = #{unionId}
+    </update>
+
+<!--根据unionid查询充值明细-->
+    <select id="selectWhereBase90DetailByunionId" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.basic.Base90Detail">
+        select * from (
+        Select round(a.point90/100,2) as point90 ,date_format(a.create_time,'%Y-%m-%d %H:%i:%s') as create_time,b.cardNumber as cardNumber from base_90_detail a left join  offline_card_90_detail b
+            ON  a.sourceId = b.cardCode left join base_user c on a.openId = c.open_Id where a.source =#{source} and c.unionId=#{unionId}
+        )as temp
+        ORDER BY temp.create_time  DESC
+        <if test="pageNum != null and pageSize != null ">
+            LIMIT #{pageNum},#{pageSize}
+        </if>
+     </select>
+    <!-- 根据某些字段查询  -->
+    <select id="selectWhereBase90Detail" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.basic.Base90Detail">
+        SELECT a.brandId as brand_code,a.id,a.sourceId as source_code,a.openId as open_id,a.sourceMsg as source_msg,ABS(A.point90) as point_90,date_format(a.create_time,'%Y-%m-%d') as create_time
+        <if test="source != null and source == 4">
+            ,b.cardNumber as card_number
+        </if>
+        FROM base_90_detail as a
+        <if test="source != null and source == 4">
+            left join
+            offline_card_90_detail as b on a.sourceId= b.cardCode
+        </if>
+        WHERE a.isdel=0
+        <if test="id != null and id != ''"><!-- 主键 -->
+            and a.id = #{id}
+        </if>
+        <if test="brand_code != null and brand_code != ''"><!-- 品牌主键 -->
+            and a.brandId = #{brand_code}
+        </if>
+        <if test="shop_code != null and shop_code != ''"><!-- 门店主键 -->
+            and a.shopId  = #{shop_code}
+        </if>
+        <if test="source_code != null and source_code != ''"><!-- 0：充值code；1：订单code;2；收银员code；3订单code -->
+            and a.sourceId  = #{source_code}
+        </if>
+        <if test="open_id != null and open_id != ''"><!-- 领取人 -->
+            and a.openId = #{open_id}
+        </if>
+        <if test="source != null and source != ''"><!-- 0、充值；1:自动；2人工；3消券 -->
+            and a.source = #{source}
+        </if>
+        <if test="source_msg != null and source_msg != ''"><!-- 说明 -->
+            and a.sourceMsg = #{source_msg}
+        </if>
+        <if test="point_90 != null and point_90 != ''"><!-- 久零券发放额 -->
+            and a.point90 = #{point_90}
+        </if>
+        <if test="isdel != null and isdel != ''"><!-- 删除标志0：未删除，1：删除 -->
+            and a.isdel = #{isdel}
+        </if>
+        <if test="create_time != null and create_time != ''"><!-- 获取时间 -->
+            and a.createTime = #{create_time}
+        </if>
+        ORDER BY a.CREATE_TIME DESC
+        <if test="pageNum != null and pageSize != null ">
+            LIMIT #{pageNum},#{pageSize}
+        </if>
+    </select>
+
+
+    <!-- 获取 -->
+    <select id="getOneBaseUserByUnionpay" parameterType="java.util.HashMap" resultType="com.biz.model.Pmodel.api.BaseUser">
+        SELECT b.id,b.open_id,b.person_name,b.sex,b.phone,b.cover,b.balance_cash,b.balance_90,b.state,b.country,b.province,b.city,
+        b.birthday,b.scan_ali_id,b.scan_yi_id,b.xy_openid,b.isdel,b.create_time,b.only_code,b.balance_90_total,b.shopid,b.isshop,
+        IFNULL(u.unionpayid,'') as  scan_yhk_id
+        FROM user_unionpay_id u
+        LEFT JOIN base_user b on b.id=u.userid
+        WHERE b.ISDEL = 0 and u.unionpayid=#{unionpayid}
+        ORDER BY u.create_time LIMIT 1
+    </select>
+<select id="getUserBalanceDetailListByOpenId" resultType="String" parameterType="java.util.Map">
+    SELECT id from base_90_detail a where source in (1,2,4) and openId=#{openId} and isdel=0
+</select>
+
+
+    <select id="findAllUser" resultType="com.biz.model.Pmodel.PBaseUser" parameterType="String">
+        SELECT * from base_user
+    </select>
+
+    <select id="findUserAllConsume" resultType="String" parameterType="com.biz.model.Pmodel.PBaseUser">
+        SELECT ifnull(sum(ifnull(point90,0)),0) from base_90_detail where openId=#{open_id} and `inOut`=0 and isdel=0
+    </select>
+
+    <update id="updateUserUnionId" parameterType="java.util.Map">
+        update base_user set unionId=#{unionid} where open_id=#{openid}
+    </update>
+
+    <select id="getUserPersonInfo" parameterType="String" resultType="java.util.Map">
+        select IFNULL(a.phone,'') as phone,IFNULL(a.birthday,'') as birthday,IFNULL(b.addDetail,'') as addDetail from base_user a
+LEFT JOIN address b on b.userId=a.id and b.isdefault=1
+where a.unionId=#{unionId}
+GROUP BY a.id
+
+    </select>
+
+    <select id="getUserCenterInfo" parameterType="String" resultType="java.util.Map">
+        SELECT
+	round(
+		IFNULL(a.balance_90, 0) / 100,
+		2
+	) AS balance_90,
+	round(
+		IFNULL(a.balance_90_total, 0) / 100,
+		2
+	) AS balance_90_total,
+IFNULL(b.chargeAmount,0) as chargeAmount,
+IFNULL(b.giveAmount,0) as giveAmount,
+c.*
+FROM
+	base_user a
+LEFT JOIN t_user_coin b on b.userId=a.id
+LEFT JOIN (
+SELECT a.buyUserId,
+sum(case a.state when 0 then 1 else 0 end) as unPay,
+sum(case b.state when 1 then 1 else 0 end) as unRec,
+sum(case b.state when 4 then 1 else 0 end) as isFinished,
+sum(case  when (b.state=5 or b.state=6) then 1 else 0 end) as inRefund
+
+ from order_main a
+LEFT JOIN order_detail b on b.orderId=a.id
+where a.isdel=0 and a.isClosed=0
+GROUP BY a.buyUserId
+) c on c.buyUserId=a.id
+WHERE
+	a.unionId = #{unionId}
+GROUP BY
+	a.id
+
+    </select>
+
+    <select id="getUserCoinList" parameterType="String" resultType="java.util.Map">
+        SELECT
+        c.id,
+        c.serialNum,
+        date_format(c.createTime,'%y-%m-%d') as createTime,
+        (CASE c.state WHEN 1 THEN concat("+",c.amount) WHEN  2 THEN concat("-",c.amount) END ) as amount,
+        c.state,
+        (CASE c.source WHEN 1 THEN '充值' WHEN 2 THEN '购买商品' WHEN 3 THEN '久零券赠送' WHEN 6 THEN '系统充值' WHEN 7 THEN '系统扣币'ELSE '' END ) as source,
+        c.type
+        FROM
+        balance_sheet c
+        LEFT JOIN base_user u ON u.id = c.userId
+        WHERE
+         u.isdel = 0
+        AND u.unionId = #{unionId}
+        ORDER BY c.createTime DESC
+    </select>
+
+    <select id="getUserByUnionId" resultType="com.biz.model.Pmodel.PBaseUser" parameterType="String">
+        select id,open_id from base_user where unionId=#{unionId}
+    </select>
+
+
+    <update id="updateUserBirthDayByUnionId" parameterType="java.util.Map">
+        update base_user set birthday=#{birthDay} where unionId=#{unionId}
+    </update>
+
+
+    <select id="getUserInfoByOpenId" parameterType="java.util.Map" resultType="java.util.Map">
+        SELECT a.*,ifnull(b.brand_code,'') as brand_code FROM base_user a
+        LEFT JOIN base_shop b on a.shop_id=b.sid
+        where a.isdel=0 and a.open_id=#{open_id}
+        limit 1
+    </select>
+    <select id="queryBaseUserByUserId" parameterType="String" resultType="com.biz.model.Pmodel.api.BaseUser">
+        select * from base_user where id=#{userId}
+    </select>
+</mapper>

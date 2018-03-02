@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="OrderMain90Dao">
+
+
+    <!-- 添加90订单表 -->
+    <insert id="insertOrderMain90" parameterType="com.biz.model.Pmodel.api.OrderMain90">
+        INSERT INTO	order_main_90(id,code,cash_total,tickets_total,open_id,user_code,shop_code,brand_code,trade_type,state,balance_type,balance_90,balance_shopping_90,balance_experience_90,isPay90,isPayShopping90,isPayExperience90)
+        VALUES (#{id},#{code},#{cash_total},#{tickets_total},#{open_id},#{user_code},#{shop_code},#{brand_code},#{trade_type},#{state},#{balance_type},#{balance_90},#{balance_shopping_90},#{balance_experience_90},#{isPay90},#{isPayShopping90},#{isPayExperience90})
+    </insert>
+
+    <!-- 获取门店信息 -->
+    <select id="getShopBySid" parameterType="String" resultType="com.biz.model.Pmodel.api.Shop">
+        SELECT s.*,b.iscoin from BASE_SHOP s
+        left join base_brand b on s.brand_code=b.brand_code
+        WHERE S.ISDEL = 0 AND S.SID = #{shop_id} and s.isdel=0
+    </select>
+
+    <!-- order_main_90 订单详情 -->
+    <select id="getOrderMain90" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.api.OrderMain90">
+       SELECT m.code,m.cash_total,
+       m.tickets_total,m.pay_90,m.order_total,
+       m.pay_coin,m.state,m.open_id,
+       s.dxy_code,s.dxy_person_code,
+       m.shop_code,m.brand_code,
+       m.trade_type,ifnull(m.balance_type,0) as balance_type,m.balance_90,m.balance_shopping_90,m.balance_experience_90,m.isPay90,m.isPayShopping90,m.isPayExperience90
+       FROM order_main_90 m
+       left join BASE_SHOP s on m.shop_code=s.sid
+       where m.code=#{orderCode} and m.isdel=0
+    </select>
+
+
+    <!-- 获取用户信息 -->
+    <select id="queryBaseUserByOpenid" parameterType="String" resultType="com.biz.model.Pmodel.api.BaseUser">
+        SELECT b.*,IFNULL(c.chargeAmount,0) as chargeAmount,IFNULL(c.giveAmount,0) as giveAmount,IFNULL(c.extraAmount,0) as extraAmount FROM base_user b
+        left join t_user_coin c on b.id=c.userId
+        WHERE b.ISDEL = 0 and b.open_id=#{openid}
+        ORDER BY b.CREATE_TIME DESC
+    </select>
+
+
+    <update id="updateOrderMain90" parameterType="com.biz.model.Pmodel.api.OrderMain90">
+        UPDATE order_main_90 SET
+        state=#{state},
+        order_total=#{order_total},
+        pay_90=#{pay_90},
+        pay_coin=#{pay_coin},
+        trade_type=#{trade_type},
+        isPay90=#{isPay90},isPayShopping90=#{isPayShopping90},isPayExperience90=#{isPayExperience90}
+        WHERE code=#{code}
+    </update>
+
+
+    <update id="updateOrderMain90Again" parameterType="com.biz.model.Pmodel.api.OrderMain90">
+        UPDATE order_main_90 SET
+        state=#{state},
+        order_total=#{order_total}
+        WHERE code=#{code}
+    </update>
+
+    <!-- 根据某些字段查询  -->
+    <select id="selectWhereOrderMain90" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.api.OrderMain90">
+        SELECT * FROM order_main_90 WHERE isdel=0
+        <if test="code != null and code != ''"><!-- 对应店小翼的order_code,90开头 -->
+            and code = #{code}
+        </if>
+        <if test="order_total != null and order_total != ''"><!-- 订单应支付额 -->
+            and order_total = #{order_total}
+        </if>
+        <if test="cash_total != null and cash_total != ''"><!-- 服务费支付金额 -->
+            and cash_total = #{cash_total}
+        </if>
+        <if test="card_total != null and card_total != ''"><!-- 优惠券产生的优惠金额 -->
+            and card_total = #{card_total}
+        </if>
+        <if test="card_count != null and card_count != ''"><!-- 所用优惠券张数 -->
+            and card_count = #{card_count}
+        </if>
+        <if test="open_id != null and open_id != ''"><!-- 个人open_id -->
+            and open_id = #{open_id}
+        </if>
+        <if test="user_code != null and user_code != ''"><!-- 营业员 -->
+            and user_code = #{user_code}
+        </if>
+        <if test="shop_code != null and shop_code != ''"><!-- 门店主键 -->
+            and shop_code = #{shop_code}
+        </if>
+        <if test="brand_code != null and brand_code != ''"><!-- 品牌主键 -->
+            and brand_code = #{brand_code}
+        </if>
+        <if test="state != null and state != ''"><!-- 0:未生效1:交易成功2:错误3:已退款 -->
+            and state = #{state}
+        </if>
+        <if test="pay_time != null and pay_time != ''"><!-- 支付时间 -->
+            and pay_time = #{pay_time}
+        </if>
+        <if test="back_code != null and back_code != ''"><!-- 退款单号 -->
+            and back_code = #{back_code}
+        </if>
+        <if test="back_time != null and back_time != ''"><!-- 退款时间 -->
+            and back_time = #{back_time}
+        </if>
+        <if test="back_user_code != null and back_user_code != ''"><!-- 退款操作人 -->
+            and back_user_code = #{back_user_code}
+        </if>
+        <if test="error_pay_msg != null and error_pay_msg != ''"><!-- 错误信息 -->
+            and error_pay_msg = #{error_pay_msg}
+        </if>
+        <if test="trade_type != null and trade_type != ''"><!-- 支付类型 MICROPAY:刷卡支付 NATIVE:扫码支付 JSAPI:公众号支付 -->
+            and trade_type = #{trade_type}
+        </if>
+        <if test="gift_90 != null and gift_90 != ''"><!-- 赠送的90券 -->
+            and gift_90 = #{gift_90}
+        </if>
+        <if test="pay_90 != null and pay_90 != ''"><!-- 消费的久零券额 -->
+            and pay_90 = #{pay_90}
+        </if>
+        <if test="pay_type != null and pay_type != ''"><!-- 0:未知 1：微信 2：支付宝 3：易支付 4:银联卡 -->
+            and pay_type = #{pay_type}
+        </if>
+        <if test="pay_user_id != null and pay_user_id != ''"><!-- 微信的open_id/支付宝的id/翼支付的id -->
+            and pay_user_id = #{pay_user_id}
+        </if>
+        <if test="isdel != null and isdel != ''"><!-- 删除标志0：未删除，1：删除 -->
+            and isdel = #{isdel}
+        </if>
+        <if test="create_time != null and create_time != ''"><!-- 创建时间 -->
+            and create_time = #{create_time}
+        </if>
+        ORDER BY CREATE_TIME DESC
+        <if test="pageNum != null and pageSize != null ">
+            LIMIT #{pageNum},#{pageSize}
+        </if>
+    </select>
+
+
+    <!-- 根据某些字段查询  -->
+    <select id="selectWhereOrderMain90Count" parameterType="java.util.Map" resultType="java.util.HashMap">
+        SELECT count(1) as listcount FROM order_main_90 WHERE isdel=0
+        <if test="code != null and code != ''"><!-- 对应店小翼的order_code,90开头 -->
+            and code = #{code}
+        </if>
+        <if test="order_total != null and order_total != ''"><!-- 订单应支付额 -->
+            and order_total = #{order_total}
+        </if>
+        <if test="cash_total != null and cash_total != ''"><!-- 服务费支付金额 -->
+            and cash_total = #{cash_total}
+        </if>
+        <if test="card_total != null and card_total != ''"><!-- 优惠券产生的优惠金额 -->
+            and card_total = #{card_total}
+        </if>
+        <if test="card_count != null and card_count != ''"><!-- 所用优惠券张数 -->
+            and card_count = #{card_count}
+        </if>
+        <if test="open_id != null and open_id != ''"><!-- 个人open_id -->
+            and open_id = #{open_id}
+        </if>
+        <if test="user_code != null and user_code != ''"><!-- 营业员 -->
+            and user_code = #{user_code}
+        </if>
+        <if test="shop_code != null and shop_code != ''"><!-- 门店主键 -->
+            and shop_code = #{shop_code}
+        </if>
+        <if test="brand_code != null and brand_code != ''"><!-- 品牌主键 -->
+            and brand_code = #{brand_code}
+        </if>
+        <if test="state != null and state != ''"><!-- 0:未生效1:交易成功2:错误3:已退款 -->
+            and state = #{state}
+        </if>
+        <if test="pay_time != null and pay_time != ''"><!-- 支付时间 -->
+            and pay_time = #{pay_time}
+        </if>
+        <if test="back_code != null and back_code != ''"><!-- 退款单号 -->
+            and back_code = #{back_code}
+        </if>
+        <if test="back_time != null and back_time != ''"><!-- 退款时间 -->
+            and back_time = #{back_time}
+        </if>
+        <if test="back_user_code != null and back_user_code != ''"><!-- 退款操作人 -->
+            and back_user_code = #{back_user_code}
+        </if>
+        <if test="error_pay_msg != null and error_pay_msg != ''"><!-- 错误信息 -->
+            and error_pay_msg = #{error_pay_msg}
+        </if>
+        <if test="trade_type != null and trade_type != ''"><!-- 支付类型 MICROPAY:刷卡支付 NATIVE:扫码支付 JSAPI:公众号支付 -->
+            and trade_type = #{trade_type}
+        </if>
+        <if test="gift_90 != null and gift_90 != ''"><!-- 赠送的90券 -->
+            and gift_90 = #{gift_90}
+        </if>
+        <if test="pay_90 != null and pay_90 != ''"><!-- 消费的久零券额 -->
+            and pay_90 = #{pay_90}
+        </if>
+        <if test="pay_type != null and pay_type != ''"><!-- 0:未知 1：微信 2：支付宝 3：易支付 4:银联卡 -->
+            and pay_type = #{pay_type}
+        </if>
+        <if test="pay_user_id != null and pay_user_id != ''"><!-- 微信的open_id/支付宝的id/翼支付的id -->
+            and pay_user_id = #{pay_user_id}
+        </if>
+        <if test="isdel != null and isdel != ''"><!-- 删除标志0：未删除，1：删除 -->
+            and isdel = #{isdel}
+        </if>
+        <if test="create_time != null and create_time != ''"><!-- 创建时间 -->
+            and create_time = #{create_time}
+        </if>
+    </select>
+
+    <!-- 查询消费次数 -->
+    <select id="getCountOrderMain90" parameterType="java.util.Map" resultType="int">
+        SELECT count(code) FROM order_main_90
+        WHERE open_id = #{open_id}  and state = #{state} and  ISDEL = 0
+    </select>
+
+    <!-- 插入QT记录 -->
+    <insert id="insertQtMsgInfo" parameterType="java.util.Map">
+        insert into  qt_order_msg (msgInfo) VALUES (#{msgInfo})
+    </insert>
+</mapper>

@@ -1,0 +1,323 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="sysUserDao">
+
+    <!-- 查询 -->
+    <select id="sysUserList" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.SysUser">
+        select a.*,IFNULL(group_concat(c.roleName),'未设置') roleName from t_sys_user a
+        left join t_user_role as b on a.id=b.user_id
+        left join t_role as c on b.role_id=c.id where a.isdel=0
+        <if test="loginName != null and loginName != ''"><!-- 关键词检索 -->
+            AND a.loginName LIKE CONCAT(CONCAT('%', #{loginName}),'%')
+        </if>
+        <if test="personName != null and personName != ''"><!-- 关键词检索 -->
+            AND a.personName LIKE CONCAT(CONCAT('%', #{personName}),'%')
+        </if>
+        <if test="email != null and email != ''"><!-- 关键词检索 -->
+            AND a.email LIKE CONCAT(CONCAT('%', #{email}),'%')
+        </if>
+        <if test="phone != null and phone != ''"><!-- 关键词检索 -->
+            AND a.phone LIKE CONCAT(CONCAT('%', #{phone}),'%')
+        </if>
+        group by a.id
+        ORDER BY a.createTime DESC
+
+        limit #{begin},#{rows}
+    </select>
+
+    <select id="sysUserCount" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.SysUser">
+        select a.*,group_concat(c.roleName) roleName from t_sys_user a
+        left join t_user_role as b on a.id=b.user_id
+        left join t_role as c on b.role_id=c.id where a.isdel=0
+        <if test="loginName != null and loginName != ''"><!-- 关键词检索 -->
+            AND a.loginName LIKE CONCAT(CONCAT('%', #{loginName}),'%')
+        </if>
+        <if test="personName != null and personName != ''"><!-- 关键词检索 -->
+            AND a.personName LIKE CONCAT(CONCAT('%', #{personName}),'%')
+        </if>
+        <if test="email != null and email != ''"><!-- 关键词检索 -->
+            AND a.email LIKE CONCAT(CONCAT('%', #{email}),'%')
+        </if>
+        <if test="phone != null and phone != ''"><!-- 关键词检索 -->
+            AND a.phone LIKE CONCAT(CONCAT('%', #{phone}),'%')
+        </if>
+        group by a.id
+        ORDER BY a.createTime DESC
+    </select>
+
+    <update id="updateUserLock" parameterType="java.util.Map">
+        UPDATE t_sys_user SET isLock=#{islock} WHERE id=#{id}
+    </update>
+
+    <!-- 获取 -->
+    <select id="getUserByCode" parameterType="String" resultType="com.biz.model.Pmodel.SysUser">
+        SELECT A.*,B.proportion,C.path FROM t_sys_user A
+        left join base_brand B on A.identity_code=B.brand_code
+        left join base_pics C on A.coverId=C.id
+        WHERE A.id=#{user_code} AND A.ISDEL=0
+    </select>
+
+
+
+    <!-- 查询 -->
+    <select id="baseUserList" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.PBaseUser">
+        select * from (
+        SELECT t.*,b.brandId FROM base_user t
+        LEFT JOIN base_90_detail b on b.openId=t.open_id
+        WHERE t.ISDEL = 0
+        <if test="q_person_name != null and q_person_name != ''">
+            AND t.person_name LIKE CONCAT(CONCAT('%', #{q_person_name}),'%')<!-- 用户昵称:关键词检索 -->
+        </if>
+        <if test="brandCode != null and brandCode != ''">
+            AND b.brandId = #{brandCode}
+        </if>
+        <if test="startDate != null and startDate != ''">
+            AND UNIX_TIMESTAMP(t.create_time) >= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND UNIX_TIMESTAMP(t.create_time) &lt;= #{endDate}
+        </if>
+        union all
+        SELECT t.*,b.brand_code FROM base_user t
+        LEFT JOIN base_90_user_detail b on b.open_id=t.open_id
+        WHERE t.ISDEL = 0
+        <if test="q_person_name != null and q_person_name != ''">
+            AND t.person_name LIKE CONCAT(CONCAT('%', #{q_person_name}),'%')<!-- 用户昵称:关键词检索 -->
+        </if>
+        <if test="brandCode != null and brandCode != ''">
+            AND b.brand_code = #{brandCode}
+        </if>
+        <if test="startDate != null and startDate != ''">
+            AND UNIX_TIMESTAMP(t.create_time) >= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND UNIX_TIMESTAMP(t.create_time) &lt;= #{endDate}
+        </if>
+        )t
+
+        GROUP BY  t.open_id
+        ORDER BY t.create_time DESC
+
+        limit #{begin},#{rows}
+    </select>
+
+    <select id="baseUserCount" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.PBaseUser">
+        select * from (
+        SELECT t.*,b.brandId FROM base_user t
+        LEFT JOIN base_90_detail b on b.openId=t.open_id
+        WHERE t.ISDEL = 0
+        <if test="q_person_name != null and q_person_name != ''">
+            AND t.person_name LIKE CONCAT(CONCAT('%', #{q_person_name}),'%')<!-- 用户昵称:关键词检索 -->
+        </if>
+        <if test="brandCode != null and brandCode != ''">
+            AND b.brandId = #{brandCode}
+        </if>
+        <if test="startDate != null and startDate != ''">
+            AND UNIX_TIMESTAMP(t.create_time) >= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND UNIX_TIMESTAMP(t.create_time) &lt;= #{endDate}
+        </if>
+        union all
+        SELECT t.*,b.brand_code FROM base_user t
+        LEFT JOIN base_90_user_detail b on b.open_id=t.open_id
+        WHERE t.ISDEL = 0
+        <if test="q_person_name != null and q_person_name != ''">
+            AND t.person_name LIKE CONCAT(CONCAT('%', #{q_person_name}),'%')<!-- 用户昵称:关键词检索 -->
+        </if>
+        <if test="brandCode != null and brandCode != ''">
+            AND b.brand_code = #{brandCode}
+        </if>
+        <if test="startDate != null and startDate != ''">
+            AND UNIX_TIMESTAMP(t.create_time) >= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND UNIX_TIMESTAMP(t.create_time) &lt;= #{endDate}
+        </if>
+        )t
+
+        GROUP BY  t.open_id
+        ORDER BY t.create_time DESC
+    </select>
+
+
+    <select id="getOrderMainIdByCode" parameterType="String" resultType="String">
+        select id from order_main
+        where code = #{orderCode}
+    </select>
+
+
+    <select id="getOrderMainIdByDetailId" parameterType="String" resultType="String">
+        select orderId from order_detail
+        where id = #{paramId}
+    </select>
+
+    <select id="getOrderMainIdByDetailOrderId" parameterType="String" resultType="com.biz.model.Pmodel.api.OrderDetail">
+        SELECT a.*,date_format(w.startTime,'%Y-%m-%d %H:%i:%s') as startTime,date_format(w.endTime,'%Y-%m-%d %H:%i:%s') as endTime from order_detail a
+        LEFT JOIN base_wxgoods w ON a.goodsId = w.goodsIdSup
+        where a.orderId=#{_parameter} and a.isdel=0
+    </select>
+
+    <select id="getUserInfoByUserId" parameterType="String" resultType="java.util.HashMap">
+        select ifnull(a.balance_90,0) as coupon,(ifnull(b.chargeAmount,0)+ifnull(b.giveAmount,0)) as coin,a.open_id,IFNULL(a.balance_shopping_90,0)
+        as balance_shopping_90,IFNULL(a.balance_experience_90,0) as balance_experience_90
+            from base_user a
+        left join t_user_coin b on a.id = b.userId
+        where a.id = #{userId}
+    </select>
+
+
+    <!-- 获取 -->
+    <select id="getShopBySid" parameterType="String" resultType="com.biz.model.Pmodel.api.Shop">
+        SELECT S.*
+        FROM BASE_SHOP S
+        WHERE S.ISDEL = 0 AND S.SID = #{sid}
+    </select>
+    <select id="getWhareid" parameterType="String" resultType="String">
+        SELECT S.stockId
+        FROM BASE_SHOP S
+        WHERE S.ISDEL = 0 AND S.SID = #{shopId}
+    </select>
+
+    <select id="getHistoryList" parameterType="String" resultType="com.biz.model.Pmodel.QT.PwxGoodsStockHistory">
+        SELECT id as relateCode,stockId,count as changeNumber,whareHouseId,8 as state from order_detail where orderId=#{_parameter} and isdel=0
+    </select>
+
+
+    <select id="getHistoryListUpCount" parameterType="String" resultType="com.biz.model.Pmodel.QT.PwxGoodsStockHistory">
+        SELECT id as relateCode,stockId,count as changeNumber,whareHouseId,9 as state from order_detail where orderId=#{_parameter} and isdel=0
+    </select>
+
+
+
+    <select id="getHistoryListUpCountByDetailId" parameterType="String" resultType="com.biz.model.Pmodel.QT.PwxGoodsStockHistory">
+        SELECT id as relateCode, stockId,count as changeNumber,whareHouseId,9 as state from order_detail where id=#{_parameter} and isdel=0
+    </select>
+
+
+    <select id="getOrderCountById" parameterType="String" resultType="java.lang.Integer">
+        select count(1)
+        from order_detail
+        where orderId = #{_parameter}
+        and state != 6
+    </select>
+
+
+
+    <!-- 查询 -->
+    <select id="baseUserPage" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.PBaseUser">
+        SELECT
+        *
+        FROM
+        (
+        SELECT
+        t.*, ifnull(e.point90, 0) point90,
+        e.person_name biz_person_name,
+        IFNULL(f.gzpoint90,0)  as gzpoint90,
+        IFNULL(ROUND((uc.chargeAmount+uc.giveAmount+uc.extraAmount),2),0) totalAmount,s.business_name
+        FROM
+        base_user t
+        LEFT JOIN (
+        SELECT
+        d.openId,d.point90,p.person_name
+        FROM
+        base_90_detail d
+        LEFT JOIN base_biz_person p ON p.`code` = d.userCode
+        WHERE d.isdel=0 and p.isdel=0
+        <if test="biz_person_name != null and biz_person_name != ''">
+            AND p.person_name LIKE CONCAT(CONCAT('%', #{biz_person_name}),'%')<!-- 业务员:关键词检索 -->
+        </if>
+        )e ON e.openId = t.open_id
+        LEFT JOIN(select openId,FORMAT(sum(point90)/100,2) as gzpoint90 from base_90_detail where source=6 GROUP by openId) f on f.openId=t.open_id
+        LEFT JOIN t_user_coin uc on uc.userId=t.id
+        LEFT JOIN base_shop s on s.sid=t.shop_id
+        WHERE
+        t.ISDEL = 0
+        <if test="q_person_name != null and q_person_name != ''">
+            AND t.person_name LIKE CONCAT(CONCAT('%', #{q_person_name}),'%')<!-- 用户昵称:关键词检索 -->
+        </if>
+        <if test="startDate != null and startDate != ''">
+            AND UNIX_TIMESTAMP(t.create_time) >= UNIX_TIMESTAMP(#{startDate})
+        </if>
+        <if test="appid != null and appid != ''">
+            AND ifnull(t.appid,'')!=#{appid}
+        </if>
+        <if test="user_balanceType != 2 and user_balanceType != '' and user_balanceType != null">
+            AND  t.isBalance90Wrong=#{user_balanceType}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND UNIX_TIMESTAMP(t.create_time) &lt;= UNIX_TIMESTAMP(#{endDate})
+        </if>
+        )t
+
+        GROUP BY  t.open_id
+        ORDER BY t.create_time DESC
+
+        limit #{begin},#{rows}
+    </select>
+
+    <select id="countBaseUser" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.PBaseUser">
+        select * from (
+        SELECT t.* FROM base_user t
+        LEFT JOIN base_90_detail d on d.openId=t.open_id
+        LEFT JOIN base_biz_person p on p.`code`=d.userCode
+        WHERE t.ISDEL = 0
+        <if test="q_person_name != null and q_person_name != ''">
+            AND t.person_name LIKE CONCAT(CONCAT('%', #{q_person_name}),'%')<!-- 用户昵称:关键词检索 -->
+        </if>
+        <if test="startDate != null and startDate != ''">
+            AND UNIX_TIMESTAMP(t.create_time) >= UNIX_TIMESTAMP(#{startDate})
+        </if>
+        <if test="user_balanceType != 2 and user_balanceType != '' and user_balanceType != null">
+            AND  t.isBalance90Wrong=#{user_balanceType}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND UNIX_TIMESTAMP(t.create_time) &lt;= UNIX_TIMESTAMP(#{endDate})
+        </if>
+        <if test="biz_person_name != null and biz_person_name != ''">
+            AND p.person_name LIKE CONCAT(CONCAT('%', #{biz_person_name}),'%')<!-- 业务员:关键词检索 -->
+        </if>
+        <if test="appid != null and appid != ''">
+            AND ifnull(t.appid,'')!=#{appid}
+        </if>
+        )t
+
+        GROUP BY  t.open_id
+        ORDER BY t.create_time DESC
+    </select>
+
+    <select id="findByCode" parameterType="String" resultType="String">
+        SELECT open_id from base_user where phone=#{onlyCode} or only_code=#{onlyCode}
+    </select>
+
+    <select id="findTorderMain" parameterType="String" resultType="com.biz.model.Hmodel.TorderMain">
+        SELECT * from order_main where code=#{orderCode}
+    </select>
+
+    <select id="findOrderMainUnion" parameterType="String" resultType="com.biz.model.Pmodel.PorderMainUnion">
+        SELECT * from order_main_90 where code=#{orderMainId}
+    </select>
+
+
+    <select id="getAllAppid" parameterType="java.util.Map" resultType="java.util.Map">
+        select appid from t_wechat_info where isdel=0
+    </select>
+
+    <update id="updateDetailState" parameterType="java.util.Map">
+        UPDATE order_detail d
+        <if test="ticketType!=null and ticketType=='0'.toString()">
+            SET d.isPayCoupons =1
+        </if>
+        <if test="ticketType!=null and ticketType=='1'.toString()">
+            SET d.isPayShopping = 1
+        </if>
+        <if test="ticketType!=null and ticketType=='2'.toString()">
+            SET d.isPayExperience = 1
+        </if>
+        WHERE
+        d.id = #{id}
+    </update>
+</mapper>

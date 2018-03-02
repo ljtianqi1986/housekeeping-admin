@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="periodDao">
+<select id="showPeroid" parameterType="java.util.Map" resultType="java.util.Map">
+   SELECT a.id,f.person_name,f.phone,c.business_name,a.createTime,sum(case when b.state in(2,3) then b.thisTotal end ) as getTotal
+,sum(case when b.state not in(2,3)then b.thisTotal end ) as remainTotal,
+count(case when b.state in(2,3) then b.id end ) as getCount,
+count(case when b.state not in(2,3)then b.id end ) as remainCount
+from periodization_main a
+LEFT JOIN periodization_detail b on a.id=b.mainId
+LEFT JOIN base_shop c on c.sid=a.shopId
+LEFT JOIN t_sys_user e on e.identity_code=c.brand_code
+LEFT JOIN base_user f on f.id=a.userId
+where a.isdel=0 and b.isdel=0 and a.isRelated=1
+    <if test="phone != null and phone != ''"><!-- 关键词检索 -->
+        AND f.phone  LIKE CONCAT(CONCAT('%', #{phone}),'%')
+    </if>
+    <if test="person_name != null and person_name != ''"><!-- 关键词检索 -->
+        AND f.person_name  LIKE CONCAT(CONCAT('%', #{person_name}),'%')
+    </if>
+    <if test="state != null and state != '' and state!='-1'"><!-- 关键词检索 -->
+        AND a.state=#{state}
+    </if>
+GROUP BY a.id
+</select>
+
+<select id="showPeroidCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+SELECT count(a.id) from (SELECT a.id,f.person_name,c.business_name,sum(case when b.state in(2,3) then b.thisTotal end ) as getTotal
+,sum(case when b.state not in(2,3)then b.thisTotal end ) as remainTotal,
+count(case when b.state in(2,3) then b.id end ) as getCount,
+count(case when b.state not in(2,3)then b.id end ) as remainCount
+from periodization_main a
+LEFT JOIN periodization_detail b on a.id=b.mainId
+LEFT JOIN base_shop c on c.sid=a.shopId
+LEFT JOIN t_sys_user e on e.identity_code=c.brand_code
+LEFT JOIN base_user f on f.id=a.userId
+where a.isdel=0 and b.isdel=0 and a.isRelated=1
+    <if test="phone != null and phone != ''"><!-- 关键词检索 -->
+        AND f.phone  LIKE CONCAT(CONCAT('%', #{phone}),'%')
+    </if>
+    <if test="person_name != null and person_name != ''"><!-- 关键词检索 -->
+        AND f.person_name  LIKE CONCAT(CONCAT('%', #{person_name}),'%')
+    </if>
+    <if test="state != null and state != ''"><!-- 关键词检索 -->
+        AND a.state=#{state}
+    </if>
+    <if test="state != null and state != '' and state!='-1'"><!-- 关键词检索 -->
+        AND a.state=#{state}
+    </if>
+GROUP BY a.id) a
+</select>
+
+    <select id="showDetail" parameterType="java.util.Map" resultType="java.util.Map">
+        SELECT a.* from periodization_detail a
+        LEFT JOIN periodization_main b on a.mainId=b.id
+        where a.isdel=0 and a.mainId=#{id}
+    </select>
+
+    <select id="showDetailCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+ SELECT count(a.id) from periodization_detail a
+        LEFT JOIN periodization_main b on a.mainId=b.id
+        where a.isdel=0 and a.mainId=#{id}
+    </select>
+
+    <update id="updateMain" parameterType="String">
+        UPDATE periodization_main set state=3 where id=#{id}
+    </update>
+    <update id="updateDetail" parameterType="String">
+        UPDATE periodization_detail set state=4 where state in(0,1) and mainId=#{id}
+    </update>
+
+    <select id="findDetailId" parameterType="String" resultType="String">
+        SELECT id from periodization_detail where mainId=#{id} LIMIT 1
+    </select>
+
+    <insert id="saveLog" parameterType="java.util.Map">
+        INSERT into periodization_detail_log VALUES(#{id},#{state},#{userId},#{detailId},#{msg})
+    </insert>
+
+</mapper>

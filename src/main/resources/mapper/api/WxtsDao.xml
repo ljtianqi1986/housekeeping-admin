@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="WxtsDao">
+
+    <!-- 获取 -->
+    <select id="getPaySceneById" parameterType="java.util.HashMap" resultType="com.biz.model.Pmodel.api.PayScene">
+        SELECT * FROM pay_scene WHERE id=#{id} and ISDEL = 0
+    </select>
+
+    <!-- 获取 -->
+    <select id="getBaseUserByOpen_id" parameterType="String" resultType="com.biz.model.Pmodel.api.BaseUser">
+        SELECT u.id,u.open_id,u.person_name,u.sex,u.phone,u.cover,u.balance_cash,u.balance_90,u.state,u.country,u.province,
+        u.city,u.birthday,u.scan_ali_id,u.scan_yi_id,u.scan_yhk_id,u.xy_openid,u.isdel,u.create_time,u.only_code,u.balance_90_total,
+        u.shopid,u.isshop,u.shop_id FROM base_user u
+        WHERE u.open_id=#{open_id} and u.ISDEL = 0
+    </select>
+
+    <!-- 获取 -->
+    <select id="getBaseUserByxy_openid" parameterType="java.util.HashMap" resultType="com.biz.model.Pmodel.api.BaseUser">
+        SELECT u.id,u.open_id,u.person_name,u.sex,u.phone,u.cover,u.balance_cash,u.balance_90,u.state,u.country,u.province,
+        u.city,u.birthday,u.scan_ali_id,u.scan_yi_id,u.scan_yhk_id,u.xy_openid,u.isdel,u.create_time,u.only_code,u.balance_90_total,
+        u.shopid,u.isshop FROM base_user u
+        WHERE u.xy_openid=#{xy_openid} and u.ISDEL = 0
+    </select>
+
+    <!-- 完善用户资料 -->
+    <insert id="insertUser" parameterType="java.util.HashMap">
+        INSERT INTO
+        base_user(ID,open_id,person_name,sex,cover,unionId,appid)
+        VALUES
+        (#{id},#{open_id},#{person_name},#{sex},#{cover},#{unionId},#{appid})
+    </insert>
+
+    <!-- 获取 -->
+    <select id="getRgGiftByCode" parameterType="String" resultType="com.biz.model.Pmodel.api.RgGift">
+        SELECT r.*,b.name as brand_name from rg_gift r
+        left join base_brand b on r.brand_code=b.brand_code WHERE r.code=#{code} and r.ISDEL = 0
+    </select>
+
+
+    <!-- 更新某个字段  -->
+    <update id="updateWhereBaseUser" parameterType="java.util.HashMap">
+        UPDATE base_user
+        <set>
+            <if test="scan_ali_id != null and scan_ali_id != ''"><!-- 第一次扫码后绑定的支付宝id -->
+                scan_ali_id = #{scan_ali_id},
+            </if>
+            <if test="scan_yi_id != null and scan_yi_id != ''"><!-- 第一次扫码后绑定的易支付的id -->
+                scan_yi_id = #{scan_yi_id},
+            </if>
+            <if test="scan_yhk_id != null and scan_yhk_id != ''"><!-- 第一次扫码后绑定的银行卡的id -->
+                scan_yhk_id = #{scan_yhk_id},
+            </if>
+            <if test="xy_openid != null and xy_openid != ''"><!-- 兴业的open_id -->
+                xy_openid = #{xy_openid},
+            </if>
+        </set>
+        WHERE open_id=#{open_id} and isdel=0
+    </update>
+
+    <!-- 获取 -->
+    <select id="getOrderMainUnionByCode" parameterType="String" resultType="com.biz.model.Pmodel.api.OrderMainUnion">
+        SELECT * FROM order_main_union WHERE code=#{code} and ISDEL = 0
+    </select>
+
+    <select id="getBrandOnlyByCode" parameterType="String" resultType="com.biz.model.Pmodel.api.Brand">
+        SELECT A.* FROM BASE_BRAND A
+        WHERE A.ISDEL = 0 AND A.BRAND_CODE=#{brand_code}
+    </select>
+
+    <!-- 更新某个字段  -->
+    <update id="updateWhereOrderMainUnion" parameterType="java.util.HashMap">
+        UPDATE order_main_union
+        <set>
+            <if test="open_id != null and open_id != ''"><!-- 个人open_id -->
+                open_id = #{open_id},
+            </if>
+        </set>
+        WHERE code=#{code} and isdel=0
+    </update>
+
+    <!-- 根据某些字段查询  -->
+    <select id="selectWhereBaseUser" parameterType="java.util.HashMap" resultType="com.biz.model.Pmodel.api.BaseUser">
+        SELECT * FROM base_user WHERE isdel=0
+        <if test="scan_ali_id != null and scan_ali_id != ''"><!-- 第一次扫码后绑定的支付宝id -->
+            and scan_ali_id = #{scan_ali_id}
+        </if>
+        <if test="scan_yi_id != null and scan_yi_id != ''"><!-- 第一次扫码后绑定的易支付的id -->
+            and scan_yi_id = #{scan_yi_id}
+        </if>
+        <if test="scan_yhk_id != null and scan_yhk_id != ''"><!-- 第一次扫码后绑定的银行卡的id -->
+            and scan_yhk_id = #{scan_yhk_id}
+        </if>
+        <if test="xy_openid != null and xy_openid != ''"><!-- 兴业的open_id -->
+            and xy_openid = #{xy_openid}
+        </if>
+        ORDER BY CREATE_TIME DESC
+    </select>
+
+
+    <!-- 更新某个字段  -->
+    <update id="updateWherePayScene" parameterType="java.util.HashMap">
+        UPDATE pay_scene
+        <set>
+            <if test="state != null and state != ''"><!-- 0:未使用 1:已使用 -->
+                state = #{state},
+            </if>
+        </set>
+        WHERE id=#{id} and isdel=0
+    </update>
+
+    <select id="findHasGiveAway" parameterType="String" resultType="java.lang.Integer">
+        select count(1) from base_90_detail where openId=#{open_id}
+    </select>
+
+    <!-- 保存用户银行卡 -->
+    <insert id="insertUserByUnionpay" parameterType="java.util.HashMap">
+        INSERT INTO
+        user_unionpay_id(id,unionpayid,userid)
+        VALUES
+        (#{id},#{unionpayid},#{userid})
+    </insert>
+
+    <select id="getBaseUserByOpenId" parameterType="String" resultType="com.biz.model.Pmodel.api.BaseUser">
+        select * from base_user
+        where open_id = #{openId}
+    </select>
+
+
+    <!--rg_gift 改变状态未已经领取-->
+    <update id="updateGiftState" parameterType="java.util.HashMap">
+        UPDATE rg_gift set state=1,get_time=now() where code=#{code}
+    </update>
+
+
+    <select id="getFirstTermIdByMainId" parameterType="String" resultType="String">
+        select id from periodization_detail
+        where isdel = 0
+        and  mainId = #{mainId}
+        and thisTerm = 1 <!--查询第一期-->
+    </select>
+
+    <select id="getBrandCodeByShopId" parameterType="String" resultType="String">
+        select brand_code from base_shop
+        where sid = #{shopId}
+    </select>
+
+    <select id="getPeriodizationMainIdByParam" parameterType="java.util.HashMap" resultType="String">
+        SELECT
+        id
+        FROM
+        periodization_main
+        WHERE
+        state = 1
+        AND isdel = 0
+        AND shopId = #{shopId}
+        AND userId = #{userId}
+        LIMIT 0,1
+    </select>
+
+    <select id="getNoGiveCountByParam" parameterType="String" resultType="java.util.HashMap">
+        select ifnull(sum(thisTotal),0) as lastTotalCoupon,count(1) as noGiveCount
+        from periodization_detail
+        where mainId = #{mainId}
+        and isdel = 0
+        and UNIX_TIMESTAMP(thisStartTime) &gt; UNIX_TIMESTAMP(now())
+    </select>
+
+    <select id="getNowTermByParam" parameterType="String" resultType="java.util.HashMap">
+        select id as detailId,ifnull(thisTerm,0) as nowTerm from periodization_detail
+        where mainId = #{mainId}
+        and isdel = 0
+        and  UNIX_TIMESTAMP(thisStartTime) &lt;= UNIX_TIMESTAMP(now())
+        and state = 0
+        order by thisEndTime desc
+        limit 0,1
+    </select>
+
+    <select id="getDetailListsByMainId" parameterType="String" resultType="String">
+        select id from periodization_detail
+        where mainId = #{mainId}
+        and isdel = 0
+        and state = 0
+        and  UNIX_TIMESTAMP(thisStartTime) &lt;= UNIX_TIMESTAMP(now())
+        order by thisTerm asc
+    </select>
+
+    <select id="getNextDetailId" parameterType="String" resultType="String">
+        select id
+        from periodization_detail
+        where mainId = #{mainId}
+        and isdel = 0
+        and UNIX_TIMESTAMP(thisStartTime) &gt; UNIX_TIMESTAMP(now())
+        order by thisStartTime asc
+        limit 0,1
+
+    </select>
+
+    <select id="getTotalTermByParam" parameterType="String" resultType="java.lang.Integer">
+        select count(1)
+        from periodization_detail
+        where mainId = #{mainId}
+        and isdel = 0
+    </select>
+    <update id="updateBaseUserSalesId" parameterType="java.util.HashMap" >
+        UPDATE base_user set sales_id = #{code} where open_id=#{open_id} and isdel=0
+    </update>
+
+    <update id="updateShopId" parameterType="java.util.Map">
+        UPDATE base_user set shop_id = #{shop_id} where open_id=#{open_id} and isdel=0
+    </update>
+
+</mapper>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="brandSpeedMapper">
+
+    <!-- 查询快速分类集合返回 -->
+    <select id="findBrandSpeedList" resultType="com.biz.model.Pmodel.basic.BrandSpeed">
+        SELECT * FROM base_brand_speed b where isdel=0 and speed_parent=0 order by sort asc;
+    </select>
+</mapper>

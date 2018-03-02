@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="Recharge90Dao">
+    <!-- 查询 -->
+    <select id="queryRecharge90List" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.basic.Recharge90">
+        SELECT A.*,B.NAME AS brand_name,B.balance_90,C.agent_name,D.person_name
+        FROM RECHARGE_90 A
+        LEFT JOIN BASE_BRAND B ON A.BRAND_CODE = B.BRAND_CODE
+        LEFT JOIN BASE_AGENT C ON A.AGENT_CODE = C.AGENT_CODE
+        LEFT JOIN SYS_USER D ON D.USER_CODE = A.USER_CODE
+        WHERE A.ISDEL = 0
+        <if test="agent!= null and agent!=''"><!-- 代理商 -->
+            AND A.AGENT_CODE = #{agent}
+        </if>
+        <if test="brand!= null and brand!=''"><!-- 品牌 -->
+            AND A.BRAND_CODE = #{brand}
+        </if>
+        ORDER BY A.CREATE_TIME DESC
+    </select>
+
+	<!-- 查询 -->
+	<select id="queryRecharge90ListForPage" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.basic.Recharge90">
+		SELECT A.*,B.NAME AS brand_name,B.balance_90,C.agent_name,D.person_name,
+        (case when A.ticketType=0 then B.balance_90  when A.ticketType=1 then B.balance_90_shop    when A.ticketType=2 then B.balance_90_experience END ) as brand_balance
+		FROM RECHARGE_90 A
+		LEFT JOIN BASE_BRAND B ON A.BRAND_CODE = B.BRAND_CODE
+		LEFT JOIN BASE_AGENT C ON A.AGENT_CODE = C.AGENT_CODE
+		LEFT JOIN SYS_USER D ON D.USER_CODE = A.USER_CODE
+		WHERE A.ISDEL = 0 
+		<if test="agent!= null and agent!=''"><!-- 代理商 -->
+			AND A.AGENT_CODE = #{agent}
+		</if>
+		<if test="brand!= null and brand!=''"><!-- 品牌 -->
+			AND A.BRAND_CODE = #{brand}
+		</if>
+		ORDER BY A.CREATE_TIME DESC
+        limit #{begin},#{rows}
+	</select>
+    <select id="queryRecharge90Count" parameterType="java.util.Map" resultType="java.lang.Integer">
+        SELECT count(1)
+        FROM RECHARGE_90 A
+        LEFT JOIN BASE_BRAND B ON A.BRAND_CODE = B.BRAND_CODE
+        LEFT JOIN BASE_AGENT C ON A.AGENT_CODE = C.AGENT_CODE
+        LEFT JOIN SYS_USER D ON D.USER_CODE = A.USER_CODE
+        WHERE A.ISDEL = 0
+        <if test="agent!= null and agent!=''"><!-- 代理商 -->
+            AND A.AGENT_CODE = #{agent}
+        </if>
+        <if test="brand!= null and brand!=''"><!-- 品牌 -->
+            AND A.BRAND_CODE = #{brand}
+        </if>
+        ORDER BY A.CREATE_TIME DESC
+	</select>
+    <insert id="insertRecharge90" parameterType="com.biz.model.Pmodel.basic.Recharge90">
+        INSERT INTO	RECHARGE_90(code,notes,brand_code,agent_code,total_90,total_rmb,biz_code,user_code,totalNow_90,ticketType)
+        VALUES (#{code},#{notes},#{brand_code},#{agent_code},#{total_90},#{total_rmb},#{biz_code},#{user_code},#{totalNow_90},#{ticketType})
+    </insert>
+
+
+    <!-- 添加 -->
+    <insert id="insertBaseLog" parameterType="com.biz.model.Pmodel.basic.BaseLog">
+        INSERT INTO
+        BASE_LOG(identity_code,user_name,identity,ip,detail,module_type,module_name,table_name,table_key)
+        VALUES
+        (
+        #{identity_code},
+        #{user_name},
+        #{identity},
+        #{ip},
+        #{detail},
+        #{module_type},
+        #{module_name},
+        #{table_name},
+        #{table_key}
+        )
+    </insert>
+	
+</mapper>

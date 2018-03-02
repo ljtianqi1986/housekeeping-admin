@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+      http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
+
+	<!-- 启动触发器的配置开始 -->
+	<bean name="startQuertz" lazy-init="false" autowire="no"
+		class="org.springframework.scheduling.quartz.SchedulerFactoryBean">
+		<property name="triggers">
+			<list>
+				<ref bean="DeliveryTrigger" />
+				<!-- 每隔1分钟对未付款的订单进行失效 未使用-->
+				<ref bean="sendJobTrigger" />
+				<!-- 每天12点对已发货的订单自动确认收货 未使用-->
+				<ref bean="autoConfirmTrigger" />
+				<!-- 每天5分钟查询未支付需要关闭的订单-->
+				<!--<ref bean="closeOrderTrigger" />-->
+			</list>
+		</property>
+	</bean>
+	<!-- 启动触发器的配置结束 -->
+
+	<!-- 启动触发器的配置结束 -->
+	<!-- Cron表达式范例： 每隔5秒执行一次：*/5 * * * * ? 每隔1分钟执行一次：0 */1 * * * ? 每天23点执行一次：0 
+		0 23 * * ? 每天凌晨1点执行一次：0 0 1 * * ? 每月1号凌晨1点执行一次：0 0 1 1 * ? 每月最后一天23点执行一次：0 
+		0 23 L * ? 每周星期天凌晨1点实行一次：0 0 1 ? * L 在26分、29分、33分执行一次：0 26,29,33 * * * ? 
+		每天的0点、13点、18点、21点都执行一次：0 0 0,13,18,21 * * ? -->
+
+	<!-- quartz-2.x的配置 -->
+	<bean id="DeliveryTrigger"
+		class="org.springframework.scheduling.quartz.CronTriggerFactoryBean">
+		<property name="jobDetail">
+			<ref bean="activityDetail" />
+		</property>
+		<property name="cronExpression">
+			<!-- 每周周三周五16点执行 -->
+			<value>0 0 11 ? * 4,6</value>
+			<!-- <value>0 */2 * * * ?</value> -->
+		</property>
+	</bean>
+
+	<bean id="sendJobTrigger"
+		class="org.springframework.scheduling.quartz.CronTriggerFactoryBean">
+		<property name="jobDetail">
+			<ref bean="sendJobDetail" />
+		</property>
+		<property name="cronExpression">
+			<!-- 每隔1分钟执行 -->
+			<value>0 */1 * * * ?</value>
+		</property>
+	</bean>
+
+	<bean id="autoConfirmTrigger"
+		class="org.springframework.scheduling.quartz.CronTriggerFactoryBean">
+		<property name="jobDetail">
+			<ref bean="autoConfirmDetail" />
+		</property>
+		<property name="cronExpression">
+			<!-- 每天12点执行 -->
+			<value>0 0 0 * * ?</value>
+		</property>
+	</bean>
+
+
+	<bean id="closeOrderTrigger"
+		  class="org.springframework.scheduling.quartz.CronTriggerFactoryBean">
+		<property name="jobDetail">
+			<ref bean="closeOrderDetail" />
+		</property>
+		<property name="cronExpression">
+			<!-- 每隔5分钟执行 -->
+			<value>0 */2 * * * ?</value>
+		</property>
+	</bean>
+	<!-- 调度的配置结束 -->
+
+	<!-- job的配置开始 -->
+	<bean id="activityDetail"
+		class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+		<property name="targetObject">
+			<ref bean="myJob" />
+		</property>
+		<property name="targetMethod">
+			<!-- 周五周日生成配送单 -->
+			<value>delivery</value>
+		</property>
+	</bean>
+
+	<bean id="sendJobDetail"
+		class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+		<property name="targetObject">
+			<ref bean="myJob" />
+		</property>
+		<property name="targetMethod">
+			<!-- 每隔1分钟将超时12小时未付款的订单取消 -->
+			<value>orderWork</value>
+		</property>
+	</bean>
+
+	<bean id="autoConfirmDetail"
+		class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+		<property name="targetObject">
+			<ref bean="myJob" />
+		</property>
+		<property name="targetMethod">
+			<!-- 每天12点自动确认收货 -->
+			<value>autoConfirm</value>
+		</property>
+	</bean>
+
+	<bean id="closeOrderDetail"
+		  class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+		<property name="targetObject">
+			<ref bean="myJob" />
+		</property>
+		<property name="targetMethod">
+			<!-- 每天5分钟自动关闭未支付超过一定时间的订单 -->
+			<value>closeOrder</value>
+		</property>
+	</bean>
+	<!-- job的配置结束 -->
+	<bean id="myJob" class="com.biz.scheduler.work1.Dispatch" />
+
+</beans>

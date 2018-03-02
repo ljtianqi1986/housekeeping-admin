@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:mvc="http://www.springframework.org/schema/mvc"
+    xmlns:dubbo="http://code.alibabatech.com/schema/dubbo"
+	xsi:schemaLocation="
+		http://www.springframework.org/schema/beans
+		http://www.springframework.org/schema/beans/spring-beans-3.2.xsd
+		http://www.springframework.org/schema/context
+		http://www.springframework.org/schema/context/spring-context-3.2.xsd
+		http://www.springframework.org/schema/mvc
+		http://www.springframework.org/schema/mvc/spring-mvc-3.2.xsd
+		http://code.alibabatech.com/schema/dubbo
+        http://code.alibabatech.com/schema/dubbo/dubbo.xsd">
+
+	<!-- 引入config配置文件 -->
+	<context:property-placeholder location="classpath:conf/config.properties" />
+
+    <!--打开dubbo 的注释-->
+    <dubbo:annotation/>
+    <dubbo:annotation package="com.biz.controller.home" />
+
+	<!-- 扫描controller（controller层注入） -->
+	<context:component-scan
+		base-package="com.framework.controller,com.biz.controller,com.framework.utils.zook" />
+	<context:annotation-config />
+	<mvc:annotation-driven />
+	<!-- 避免IE在ajax请求时，返回json出现下载 <bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter"> 
+		<property name="messageConverters"> <list> <bean class="org.springframework.http.converter.json.MappingJacksonHttpMessageConverter"/> 
+		</list> </property> </bean> -->
+
+	<!-- 配置多个 InternalResourceViewResolver -->
+	<bean
+		class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+		<property name="prefix" value="/jsp/" />
+		<property name="suffix" value=".jsp" />
+	</bean>
+
+	<bean id="multipartResolver"
+		class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+		<!-- set the max upload size100MB -->
+		<property name="maxUploadSize">
+			<value>${maxUploadSize}</value>
+		</property>
+		<property name="maxInMemorySize">
+			<value>${maxInMemorySize}</value>
+		</property>
+	</bean>
+
+
+
+
+
+</beans>

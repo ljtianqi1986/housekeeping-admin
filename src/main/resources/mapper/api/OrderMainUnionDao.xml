@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="OrderMainUnionDao">
+
+    <!-- 获取 -->
+    <select id="getOrderMainUnionByCode" parameterType="String" resultType="com.biz.model.Pmodel.PorderMainUnion">
+        SELECT * FROM order_main_union WHERE code=#{code} and ISDEL = 0
+    </select>
+    <!-- 获取 -->
+    <select id="getCreateTimeByMainCode" parameterType="String" resultType="String">
+        SELECT date_format(create_time,'%Y-%m-%d %H:%i:%s') as create_time FROM order_main_union WHERE code=#{sourceId} and ISDEL = 0
+    </select>
+
+    <!-- 更新某个字段  -->
+    <update id="updateWhereOrderMainUnion" parameterType="java.util.HashMap">
+        UPDATE order_main_union
+        <set>
+            <if test="order_total != null "><!-- 订单应支付额 -->
+                order_total = #{order_total},
+            </if>
+            <if test="cash_total != null "><!-- 现金支付金额 -->
+                cash_total = #{cash_total},
+            </if>
+            <if test="card_total != null and card_total != ''"><!-- 优惠券产生的优惠金额 -->
+                card_total = #{card_total},
+            </if>
+            <if test="card_count != null and card_count != ''"><!-- 所用优惠券张数 -->
+                card_count = #{card_count},
+            </if>
+            <if test="open_id != null and open_id != ''"><!-- 个人open_id -->
+                open_id = #{open_id},
+            </if>
+            <if test="user_code != null and user_code != ''"><!-- 营业员 -->
+                user_code = #{user_code},
+            </if>
+            <if test="shop_code != null and shop_code != ''"><!-- 门店主键 -->
+                shop_code = #{shop_code},
+            </if>
+            <if test="brand_code != null and brand_code != ''"><!-- 品牌主键 -->
+                brand_code = #{brand_code},
+            </if>
+            <if test="state != null and state != ''"><!-- 0:未生效1:交易成功2:错误3:已退款 -->
+                state = #{state},
+            </if>
+            <if test="pay_time != null and pay_time != ''"><!-- 支付时间 -->
+                pay_time = #{pay_time},
+            </if>
+            <if test="back_code != null and back_code != ''"><!-- 退款单号 -->
+                back_code = #{back_code},
+            </if>
+            <if test="back_time != null and back_time != ''"><!-- 退款时间 -->
+                back_time = #{back_time},
+            </if>
+            <if test="back_user_code != null and back_user_code != ''"><!-- 退款操作人 -->
+                back_user_code = #{back_user_code},
+            </if>
+            <if test="error_pay_msg != null "><!-- 错误信息 -->
+                error_pay_msg = #{error_pay_msg},
+            </if>
+            <if test="trade_type != null and trade_type != ''"><!-- 支付类型 MICROPAY:刷卡支付 NATIVE:扫码支付 JSAPI:公众号支付 -->
+                trade_type = #{trade_type},
+            </if>
+            <if test="gift_90 != null"><!-- 赠送的90券 -->
+                gift_90 = #{gift_90},
+            </if>
+            <if test="commission != null and commission != ''"><!-- 久零佣金百分点 -->
+                commission = #{commission},
+            </if>
+            <if test="procedures != null and procedures != ''"><!-- 兴业银行手续费百分点 -->
+                procedures = #{procedures},
+            </if>
+            <if test="is_clean != null and is_clean != ''"><!-- 0:未结账1已结账 -->
+                is_clean = #{is_clean},
+            </if>
+            <if test="pay_type != null and pay_type != ''"><!-- 0:未知 1：微信 2：支付宝 3：易支付 4:银联卡 -->
+                pay_type = #{pay_type},
+            </if>
+            <if test="pay_user_id != null and pay_user_id != ''"><!-- 微信的open_id/支付宝的id/翼支付的id -->
+                pay_user_id = #{pay_user_id},
+            </if>
+            <if test="isdel != null and isdel != ''"><!-- 删除标志0：未删除，1：删除 -->
+                isdel = #{isdel},
+            </if>
+            <if test="old_order_total != null and old_order_total != ''"><!-- 原始订单应付金额 -->
+                old_order_total = #{old_order_total},
+            </if>
+            <if test="old_gift_90 != null and old_gift_90 != ''"><!-- 原始订单赠送90券 -->
+                old_gift_90 = #{old_gift_90},
+            </if>
+            <if test="create_time != null and create_time != ''"><!-- 创建时间 -->
+                create_time = #{create_time},
+            </if>
+        </set>
+        WHERE code=#{code} and isdel=0
+    </update>
+
+
+    <!-- 添加 -->
+    <insert id="insertOrderMainUnion" parameterType="com.biz.model.Pmodel.PorderMainUnion"  useGeneratedKeys="true" keyProperty="code">
+        INSERT INTO	order_main_union(code,order_total,cash_total,card_total,card_count,open_id,user_code,shop_code,brand_code,state,pay_time,back_code,back_time,back_user_code,error_pay_msg,trade_type,gift_90,commission,procedures,is_clean,pay_type,pay_user_id,old_order_total,old_gift_90,coin_90,balance_type)
+        VALUES (#{code},#{order_total},#{cash_total},#{card_total},#{card_count},#{open_id},#{user_code},#{shop_code},#{brand_code},#{state},#{pay_time},#{back_code},#{back_time},#{back_user_code},#{error_pay_msg},#{trade_type},#{gift_90},#{commission},#{procedures},#{is_clean},#{pay_type},#{pay_user_id},#{old_order_total},#{old_gift_90},#{coin_90},#{balance_type})
+    </insert>
+
+    <!-- 增加用户90券 -->
+    <update id="add_balance_90" parameterType="java.util.HashMap">
+        UPDATE base_user SET balance_90 = balance_90 + #{balance_90},balance_90_total = balance_90_total + #{balance_90}
+        WHERE open_id=#{open_id} and ISDEL = 0
+    </update>
+
+    <!-- 添加 -->
+    <insert id="insertBase90Detail" parameterType="com.biz.model.Pmodel.basic.Base90Detail"  useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO	base_90_detail(brand_code,shop_code,source_code,open_id,source,source_msg,point_90,user_code,rg_code)
+        VALUES (#{brand_code},#{shop_code},#{source_code},#{open_id},#{source},#{source_msg},#{point_90},#{user_code},#{rg_code})
+    </insert>
+
+
+
+    <!-- 收银记录  -->
+    <select id="collectRecord" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.api.OrderMainUnion">
+        SELECT a.*,b.personName as PERSON_NAME,c.person_name as  custom_name
+        FROM order_main_union a
+        LEFT JOIN t_sys_user b ON a.user_code = b.id
+        LEFT JOIN base_user c ON c.open_id = a.open_id
+        WHERE a.isdel=0
+        and a.shop_code = #{shop_id}
+        and a.state = #{state}
+        <if test="trade_type != '' and trade_type!=null">
+            and a.trade_type = #{trade_type}
+        </if>
+
+        <!-- Update zhengXin 增加收银记录检索条件 start -->
+        <if test="orderCode != '' and orderCode != null">
+            and a.code = #{orderCode}
+        </if>
+
+        <if test="telephone != '' and telephone != null">
+            and c.phone = #{telephone}
+        </if>
+
+        <if test="beginStamp != null and beginStamp != ''">
+            AND UNIX_TIMESTAMP(a.create_time) >= #{beginStamp} AND UNIX_TIMESTAMP(a.create_time) &lt;= #{endStamp}
+        </if>
+        <!-- Update zhengXin 增加收银记录检索条件 end -->
+
+        ORDER BY a.CREATE_TIME DESC
+        <if test="pageNum != null and pageSize != null ">
+            LIMIT #{pageNum},#{pageSize}
+        </if>
+    </select>
+
+    <!-- 收银记录 分收银员|店长查询 -->
+    <select id="collectRecordForClerk" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.api.OrderMainUnion">
+        SELECT a.*,b.personName as PERSON_NAME,c.person_name as  custom_name
+        FROM order_main_union a
+        LEFT JOIN t_sys_user b ON a.user_code = b.id
+        LEFT JOIN base_user c ON c.open_id = a.open_id
+        WHERE a.isdel=0
+        and a.user_code = #{code}
+        and a.state = #{state}
+        <if test="trade_type != '' and trade_type!=null">
+            and a.trade_type = #{trade_type}
+        </if>
+
+        <!-- Update zhengXin 增加收银记录检索条件 start -->
+        <if test="orderCode != '' and orderCode != null">
+            and a.code = #{orderCode}
+        </if>
+
+        <if test="telephone != '' and telephone != null">
+            and c.phone = #{telephone}
+        </if>
+
+        <if test="beginStamp != null and beginStamp != ''">
+            AND UNIX_TIMESTAMP(a.create_time) >= #{beginStamp} AND UNIX_TIMESTAMP(a.create_time) &lt;= #{endStamp}
+        </if>
+        <!-- Update zhengXin 增加收银记录检索条件 end -->
+
+        ORDER BY a.CREATE_TIME DESC
+        <if test="pageNum != null and pageSize != null ">
+            LIMIT #{pageNum},#{pageSize}
+        </if>
+    </select>
+
+    <!-- 获取支付记录 -->
+    <select id="getOrderGetBalance90" parameterType="java.util.Map" resultType="java.util.Map">
+        SELECT id FROM base_90_detail d
+where d.source=1 and d.inOut=1 and isdel=0 and sourceId=#{sourceId}
+    </select>
+
+</mapper>

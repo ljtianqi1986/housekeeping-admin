@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:dubbo="http://code.alibabatech.com/schema/dubbo"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://code.alibabatech.com/schema/dubbo
+        http://code.alibabatech.com/schema/dubbo/dubbo.xsd
+        ">
+
+    <!-- 具体的实现bean 应为已经组件注册 所有不需要具体指明了 -->
+    <!--<bean id="dubboService" class="service.system.DubboServiceImpl" />-->
+
+    <!-- 提供方应用信息，用于计算依赖关系 -->
+    <dubbo:application name="x_xmaarket" />
+
+    <!-- 使用multicast广播注册中心暴露服务地址 -->
+    <!--<dubbo:registry address="multicast://224.5.6.7:1234" /> -->
+
+    <!-- 使用zookeeper注册中心暴露服务地址 -即zookeeper的所在服务器ip地址和端口号 -->
+    <!-- <dubbo:registry address="zookeeper://115.159.35.246:8080" />-->
+    <dubbo:registry
+            protocol="zookeeper"
+            timeout="2000000"
+            address="123.206.190.95:2181,118.89.104.14:2181,115.159.35.246:2181"/>
+
+    <!-- 用dubbo协议在20880端口暴露服务 -->
+    <dubbo:protocol name="dubbo"  port="20880" />
+
+
+
+    <!-- 声明需要暴露的服务接口 开始-->
+    <!--<dubbo:service interface="service.system.DubboServiceI" ref="dubboService" />-->
+    <!-- 声明需要暴露的服务接口 结束-->
+    <dubbo:reference id="wxTemplateServiceJswzc" interface="com.jswzc.api.service.wxTemplate.WxTemplateServiceI" />
+
+    <!--久零订单处理服务 开始-->
+    <dubbo:service  interface="com.jswzc.jiuling.service.order.DlServiceI" ref="dlService" />
+    <dubbo:service  interface="com.jswzc.jiuling.service.order.TzServiceI" ref="tzService" />
+    <dubbo:service  interface="com.jswzc.jiuling.service.order.ZyServiceI" ref="zyService" />
+    <!--久零订单处理服务 结束-->
+</beans>

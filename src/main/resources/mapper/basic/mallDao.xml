@@ -1,0 +1,473 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="mallDao">
+    <!-- 分页数据 -->
+    <select id="showUnionMall"  parameterType="java.util.Map" resultType="com.biz.model.Pmodel.basic.Pwxgoods">
+        select a.*,
+        tgb.name as brandName,
+        ifnull(tg.name,'') as unitName,
+        c.path,ifnull(c.mainType,'0') as mainType,
+        wag.speed_name as brandName2,	 bws.stockNow,
+        bws.venderId as venderIdSup,
+        ifnull(p.path,'') as coverPath
+        from base_wxgoods as a
+        left join base_pics p  on a.coverId  = p.id
+        left join t_goods_unit tg on tg.id = a.unitId
+        LEFT JOIN (select mainType,mainId,path from base_pics where isdel=0 and mainId is not null) AS c ON a.id = c.mainId
+        left join t_goods_brand tgb on tgb.id=a.brand
+        LEFT JOIN base_brand_speed wag on wag.speed_code=a.brand
+        LEFT JOIN (
+        SELECT
+        sum(stockNow) as stockNow,
+        goodsId,
+        venderId
+        FROM
+        base_wxgoods_stock
+        WHERE
+        isdel = 0
+        group by goodsId
+        ) bws on bws.goodsId=a.id
+        where a.isdel=0
+        <if test="speed_code !=null and speed_code !='' ">
+            and a.brand LIKE CONCAT(CONCAT('%', #{speed_code}),'%')
+        </if>
+        <if test="name !=null and name !='' ">
+            and a.name LIKE CONCAT(CONCAT('%', #{name}),'%')
+        </if>
+        <if test="code !=null and code !='' ">
+            and a.code LIKE CONCAT(CONCAT('%', #{code}),'%')
+        </if>
+        <if test="isTicket !=null and isTicket !='' ">
+            and a.isTicket=#{isTicket}
+        </if>
+        <if test="shopId !=null and shopId !='' ">
+            and a.shopid = #{shopId}
+        </if>
+        <if test="stockTotal==1">
+            and (select sum(stockNow) from base_wxgoods_stock where goodsId=a.id and isdel=0)>0
+        </if>
+        <if test="stockTotal==0">
+            and (select sum(stockNow) from base_wxgoods_stock where goodsId=a.id and isdel=0) &lt;=0
+        </if>
+        <if test="groupId !=null and groupId!='' ">
+            and EXISTS(
+            select tgt.id
+            from t_goods_tag tgt
+            inner join t_tag_group ttg on ttg.tagid = tgt.tagid and ttg.groupid = #{groupId} and ttg.isdel=0
+            where tgt.goodsid = a.id and ttg.isdel =0
+            )
+
+        </if>
+
+        <if test="brandNameNew !=null and brandNameNew !='' ">
+            and a.brand=#{brandNameNew}
+        </if>
+
+        <if test="shangxiajia !=null and shangxiajia !='' and shangxiajia !='-1' ">
+            and a.isSale=#{shangxiajia}
+        </if>
+        GROUP BY a.id
+        order by a.createTime desc
+        limit #{begin},#{rows}
+    </select>
+
+    <!-- 数据量 -->
+    <select id="showUnionMallCount"  parameterType="java.util.Map" resultType="java.lang.Integer">
+        select count(1)  from base_wxgoods as a
+        where a.isdel=0
+        <if test="speed_code !=null and speed_code !='' ">
+            and a.brand LIKE CONCAT(CONCAT('%', #{speed_code}),'%')
+        </if>
+        <if test="name !=null and name !='' ">
+            and a.name LIKE CONCAT(CONCAT('%', #{name}),'%')
+        </if>
+        <if test="code !=null and code !='' ">
+            and a.code LIKE CONCAT(CONCAT('%', #{code}),'%')
+        </if>
+        <if test="isTicket !=null and isTicket !='' ">
+            and a.isTicket=#{isTicket}
+        </if>
+        <if test="shopId !=null and shopId !='' ">
+            and a.shopid = #{shopId}
+        </if>
+        <if test="stockTotal==1">
+            and (select sum(stockNow) from base_wxgoods_stock where goodsId=a.id and isdel=0)>0
+        </if>
+        <if test="stockTotal==0">
+            and (select sum(stockNow) from base_wxgoods_stock where goodsId=a.id and isdel=0) &lt;=0
+        </if>
+        <if test="groupId !=null and groupId!='' ">
+            and EXISTS(
+            select tgt.id
+            from t_goods_tag tgt
+            inner join t_tag_group ttg on ttg.tagid = tgt.tagid and ttg.groupid = #{groupId} and ttg.isdel=0
+            where tgt.goodsid = a.id and ttg.isdel =0
+            )
+
+        </if>
+
+        <if test="brandNameNew !=null and brandNameNew !='' ">
+            and a.brand=#{brandNameNew}
+        </if>
+
+        <if test="shangxiajia !=null and shangxiajia !='' and shangxiajia !='-1' ">
+            and a.isSale=#{shangxiajia}
+        </if>
+
+    </select>
+
+    <update id="updateNumSss" parameterType="String">
+        UPDATE wx_alliance_group a left join base_wxgoods b on a.id=b.brand
+        set a.num=a.num+1 where b.id=#{parameter}
+    </update>
+
+    <update id="updateNumMunesSss" parameterType="String">
+        UPDATE wx_alliance_group a left join base_wxgoods b on a.id=b.brand
+        set a.num=a.num-1 where b.id=#{parameter}
+    </update>
+
+    <select id="findWxgoodsPropertyName" parameterType="String" resultType="java.util.HashMap">
+        select c.name,c.id from base_wxgoods_property a
+        left join base_standard b on a.property=b.id left join base_standard c on b.pid=c.id
+        where a.isdel=0 and a.goodsId=#{goodsId} group by c.name ORDER BY a.type
+    </select>
+
+    <insert id="saveTag" parameterType="com.biz.model.Pmodel.basic.Ptag">
+        insert into wx_goods_tag (id,name,state,createTime,isdel,shopid,num) values(#{id},#{name},0,now(),0,#{shopid},0)
+    </insert>
+    <insert id="saveGroup" parameterType="com.biz.model.Pmodel.basic.Pgroup">
+        insert into wx_goods_group (id,name,state,createTime,isdel,shopid,isTicket,icon) values(#{id},#{name},0,now(),0,#{shopid},0,#{icon});
+    </insert>
+    <select id="getTagGroup" parameterType="java.util.Map" resultType="String">
+        select id from t_tag_group where tagid=#{tag} and groupid=#{group} and isdel=0
+    </select>
+    <insert id="saveTagGroup" parameterType="java.util.Map">
+        insert into t_tag_group (id,tagid,groupid,isdel,createTime) values(#{id},#{tag},#{group} ,0,now())
+    </insert>
+    <insert id="saveGoodsPics" parameterType="com.biz.model.Pmodel.basic.Ppics">
+        insert into base_pics (id,mainType,path,size,isdel) values(#{id},#{mainType},#{path},0,0)
+
+    </insert>
+    <insert id="saveStandardForInterface" parameterType="java.util.Map">
+        insert into base_standard (id,name,pid,shopId,isdel,createTime,type) values
+        <foreach collection="list" close="" index="index" item="item" open="" separator=",">
+            (#{item.id},#{item.name},#{item.pid},#{item.shopId},0,now(),1)
+        </foreach>
+
+
+    </insert>
+
+    <select id="getStocklist" parameterType="String" resultType="com.biz.model.Pmodel.PwxGoodsStock">
+        SELECT
+        ifnull(a.skuId,a.id) as id,a.price as priceDiaopai,a.saleCount,a.stockNow as stock,a.venderId,skuCode,
+        e. NAME AS standard1Name,
+        e.id as typesId1,
+        h. NAME AS standard1Pname,
+        h.id AS standard1Pid,
+        f. NAME AS standard2Name,
+        f.id as typesId2,
+        i. NAME AS standard2Pname,
+        i.id AS standard2Pid,
+        g. NAME AS standard3Name,
+        g.id as typesId3,
+        j. NAME AS standard3Pname,
+        j.id AS standard3Pid
+        FROM
+        base_wxgoods_stock a
+        LEFT JOIN base_wxgoods_property b ON a.typesId1 = b.id
+        LEFT JOIN base_wxgoods_property c ON a.typesId2 = c.id
+        LEFT JOIN base_wxgoods_property d ON a.typesId3 = d.id
+        LEFT JOIN base_standard e ON e.id = b.property
+        LEFT JOIN base_standard f ON f.id = c.property
+        LEFT JOIN base_standard g ON g.id = d.property
+        LEFT JOIN base_standard h ON h.id = e.pid
+        LEFT JOIN base_standard i ON i.id = f.pid
+        LEFT JOIN base_standard j ON j.id = g.pid
+
+        where a.goodsId=#{id} and a.isdel=0
+        group by a.id
+    </select>
+
+    <select id="getStockParList" parameterType="String" resultType="com.biz.model.Pmodel.PwxGoodsStock">
+        SELECT p.name,p.id FROM base_standard a
+        LEFT JOIN base_standard p on p.id=a.pid
+        LEFT JOIN base_wxgoods_property b on a.id=b.property
+        LEFT JOIN base_wxgoods c on c.id=b.goodsId
+        where c.id=#{id}
+        GROUP BY p.id
+    </select>
+
+    <select id="loadGroup" parameterType="String" resultType="java.util.Map">
+        SELECT * from base_standard where pid=#{pid} and isdel=0
+    </select>
+
+    <insert id="addGroup" parameterType="java.util.Map">
+        INSERT into base_standard  (id,name,pid) values(#{id},#{name},#{pid})
+    </insert>
+
+    <update id="updateNum" parameterType="String">
+        UPDATE base_brand_speed set num=num+1 where speed_code=#{parameter}
+    </update>
+
+    <select id="getByIdBySql" parameterType="String" resultType="com.biz.model.Pmodel.basic.Pwxgoods">
+        select a.*, p.path as coverPath
+        from base_wxgoods a
+        left join base_pics p on a.coverId = p.id
+        where  a.isdel=0  and a.id=#{id}
+    </select>
+
+    <select id="findWxgoodsPropertyList" parameterType="String" resultType="com.biz.model.Pmodel.basic.PwxgoodsProperty">
+        select a.*,b.path,ifnull(b.mainType,'0') as mainType,c.name as pname,c.pid,c.id as selectId  from base_wxgoods_property as a
+        LEFT JOIN base_pics as b on a.picId=b.id LEFT JOIN base_standard c on a.property=c.id
+        where a.isdel=0 and a.goodsId=#{goodsId} order by c.pid
+    </select>
+
+    <select id="findWxgoodsStockList" parameterType="java.lang.String" resultType="com.biz.model.Pmodel.basic.PwxgoodsStock">
+        select a.*,b.property typeName,b.id as proId,b.picId,c.property buyTimeName,d.property isVaseName,e.name,f.name as name1,g.name as name2,
+        e.id as optionId1,f.id as optionId2,g.id as option3
+        from base_wxgoods_stock as a
+        LEFT JOIN base_wxgoods_property as b on a.typesId1=b.id LEFT JOIN base_standard as e on b.property=e.id
+        LEFT JOIN base_wxgoods_property as c on a.typesId2=c.id LEFT JOIN base_standard as f on c.property=f.id
+        LEFT JOIN base_wxgoods_property as d on a.typesId3=d.id LEFT JOIN base_standard as g on d.property=g.id
+        where a.goodsId=#{goodsId} and a.isdel=0
+    </select>
+
+    <select id="findPicsByMainid" parameterType="String"
+            resultType="com.biz.model.Pmodel.basic.Ppics">
+        SELECT * FROM BASE_PICS WHERE ISDEL = 0 AND MAINID=#{id}
+    </select>
+
+
+    <update id="updateStockAndPrice" parameterType="java.util.Map">
+        update base_wxgoods_stock
+        set price=#{price}, stockNow=#{stock}
+        where id=#{id}
+    </update>
+
+    <select id="getGoodsById" parameterType="String" resultType="java.util.Map">
+        select g.* from base_wxgoods g
+        where g.id=#{id} and g.isdel=0
+    </select>
+
+    <select id="getGoodsStockById" parameterType="String" resultType="java.util.Map">
+        select s.* from base_wxgoods_stock s
+        where s.isdel=0 and s.id=#{id}
+    </select>
+
+    <update id="updateStock" parameterType="java.util.Map">
+        update base_wxgoods_stock
+        set stock = stock + #{addStock}, stockNow = stockNow + #{addStock}
+        where id = #{id}
+
+    </update>
+
+    <select id="getGoodsDetail" parameterType="com.biz.model.Pmodel.PwxGoods" resultType="com.biz.model.Pmodel.PwxGoods">
+        SELECT
+        g.id,
+        g.`code`,
+        g.`name`,
+        g.isSale,
+        g.sales,
+        g.isdel,
+        g.createTime,
+        g.shopid,
+        g.coverId,
+        g.unitId,
+        g.brand,
+        ifnull(g.info,'') AS comment,
+        u.`name` AS unitName,
+        a.`name` AS brandName,
+        wgt.`name` AS tagName,
+        bp.path as coverPath,
+        wgt.`name` AS tagName,
+        g.goodsIdSup
+        FROM
+        base_wxgoods g
+        LEFT JOIN t_goods_unit u ON g.unitId = u.id
+        LEFT JOIN t_goods_brand a ON g.brand = a.id
+        LEFT JOIN t_goods_tag tgt ON tgt.goodsid = g.id
+        LEFT JOIN wx_goods_tag wgt ON tgt.tagid = wgt.id
+        LEFT JOIN base_pics bp ON bp.id = g.coverId
+        WHERE
+        g.id = #{id}  and g.isTicket=0 and g.isdel=0
+    </select>
+
+    <select id="getGoodsStockById2" parameterType="com.biz.model.Pmodel.PwxGoodsStock" resultType="com.biz.model.Pmodel.PwxGoodsStock">
+        SELECT
+        s.id,
+        s.goodsId,
+        s.typesId1,
+        s.typesId2,
+        s.typesId3,
+        s.price,
+        s.priceMoney,
+        s.stock,
+        s.venderId,
+        s.isdel,
+        s.createTime,
+        s.saleCount,
+        s.skuCode,
+        t1.`name` AS standard1Name,
+        tp1.`name` AS standard1Pname,
+        tp1.id AS standard1Pid,
+        t2.`name` AS standard2Name,
+        tp2.`name` AS standard2Pname,
+        tp2.id AS standard2Pid,
+        t3.`name` AS standard3Name,
+        tp3.`name` AS standard3Pname,
+        tp3.id AS standard3Pid
+        FROM
+        base_wxgoods_stock s
+        LEFT JOIN base_wxgoods g on s.goodsId = g.id
+
+        LEFT join base_wxgoods_property p1 on s.typesId1 = p1.id
+        LEFT JOIN base_standard t1 ON p1.property = t1.id
+        LEFT JOIN base_standard tp1 ON t1.pid = tp1.id
+
+        LEFT join base_wxgoods_property p2 on s.typesId2 = p2.id
+        LEFT JOIN base_standard t2 ON p2.property = t2.id
+        LEFT JOIN base_standard tp2 ON t2.pid = tp2.id
+
+        LEFT join base_wxgoods_property p3 on s.typesId3 = p3.id
+        LEFT JOIN base_standard t3 ON p3.property = t3.id
+        LEFT JOIN base_standard tp3 ON t3.pid = tp3.id
+        WHERE
+        s.goodsId = #{id}
+    </select>
+
+    <select id="getGoodsStandarParNodeList" parameterType="com.biz.model.Pmodel.PwxGoods" resultType="com.biz.model.Pmodel.PwxGoods">
+        SELECT
+        t.id,
+        t.`name`
+        FROM
+        base_standard t
+        WHERE
+        t.id IN (
+        SELECT
+        tp1.id
+        FROM
+        (
+        SELECT
+        s.typesId1
+        FROM
+        base_wxgoods_stock s
+        WHERE
+        s.goodsId = #{id}
+        LIMIT 0,
+        1
+        ) AS z
+        LEFT JOIN base_wxgoods_property p1 ON z.typesId1 = p1.id
+        LEFT JOIN base_standard t1 ON p1.property = t1.id
+        LEFT JOIN base_standard tp1 ON t1.pid = tp1.id
+        UNION ALL
+        SELECT
+        tp1.id
+        FROM
+        (
+        SELECT
+        s.typesId2
+        FROM
+        base_wxgoods_stock s
+        WHERE
+        s.goodsId = #{id}
+        LIMIT 0,
+        1
+        ) AS z
+        LEFT JOIN base_wxgoods_property p1 ON z.typesId2 = p1.id
+        LEFT JOIN base_standard t1 ON p1.property = t1.id
+        LEFT JOIN base_standard tp1 ON t1.pid = tp1.id
+        UNION ALL
+        SELECT
+        tp1.id
+        FROM
+        (
+        SELECT
+        s.typesId3
+        FROM
+        base_wxgoods_stock s
+        WHERE
+        s.goodsId = #{id}
+        LIMIT 0,
+        1
+        ) AS z
+        LEFT JOIN base_wxgoods_property p1 ON z.typesId3 = p1.id
+        LEFT JOIN base_standard t1 ON p1.property = t1.id
+        LEFT JOIN base_standard tp1 ON t1.pid = tp1.id
+        )
+    </select>
+
+    <select id="getGoodsCoverList"  resultType="com.biz.model.Pmodel.PwxGoodsStock">
+        SELECT
+        p.id AS coverId,
+        p.path AS coverPath
+        FROM
+        base_pics p
+        WHERE
+        p.mainId = #{id} and p.isdel=0
+    </select>
+
+    <select id="isExsitedVenderId" resultType="java.util.Map" parameterType="java.util.Map">
+        select s.goodsId,
+        ifnull(s.typesId1,'') as typesId1,
+        ifnull(s.typesId2,'') as typesId2,
+        ifnull(s.typesId3,'') as typesId3
+        from base_wxgoods g
+        left join base_wxgoods_stock s on g.id = s.goodsId
+        where g.venderId=#{goodsVenderId} and s.venderId=#{stockVenderId}
+        and g.isTicket = 1
+        and s.isdel=0 and g.isdel=0
+    </select>
+
+    <select id="findBrandSpeed" resultType="java.util.Map">
+        SELECT * from base_brand_speed where isdel=0
+    </select>
+    <select id="findTagByGroupId" parameterType="java.lang.String" resultType="com.biz.model.Hmodel.basic.Ttag">
+        select a.* from wx_goods_tag as a
+        left join t_tag_group as b on a.id=b.tagid
+        where a.isdel=0 and b.isdel=0 and b.groupid='${_parameter}'
+    </select>
+    <select id="findGroup90" resultType="java.util.Map">
+        select g.*
+        from wx_goods_group g
+        where g.isdel=0 and g.isTicket=0
+    </select>
+    <insert id="saveGroupNewIcon" parameterType="com.biz.model.Pmodel.Ppics">
+        insert into base_pics(id,mainType,name,path,size,isdel,createTtime)
+        values(#{id},#{mainType},#{name},#{path},#{size},#{isdel},#{createTtime})
+
+    </insert>
+    <select id="findGroup" resultType="com.biz.model.Hmodel.basic.TwxGoodsGroup">
+        SELECT
+        a.id,
+        a.name,
+        a.state,
+        a.createTime,
+        a.isdel,
+        a.shopid,
+        a.isCustom,
+        IFNULL(a.note, '') AS note,
+        a.icon,
+        IFNULL(sum(d.num), 0) AS num,
+        IFNULL(b.path,'') as path,
+        IFNULL(e.path,'') as customImgPath,
+        ifnull(b.mainType, '0') AS mainType
+        FROM
+        wx_goods_group a
+        LEFT JOIN base_pics b ON a.icon = b.id
+        LEFT JOIN base_pics e ON a.customImg = e.id
+        LEFT JOIN t_tag_group c ON c.groupid = a.id
+        LEFT JOIN wx_goods_tag d ON d.id = c.tagid
+        WHERE
+        a.isdel = 0 and a.state=0
+        AND a.isTicket = 0
+        GROUP BY
+        a.id
+        order by a.sort asc
+    </select>
+    <select id="getGoodsInfoByCode" parameterType="String" resultType="java.util.Map">
+        select * from base_wxgoods where id=#{goodsId}
+    </select>
+</mapper>

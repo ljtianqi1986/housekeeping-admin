@@ -1,0 +1,521 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="CouponUse">
+    <select id="findPageCouponUse" parameterType="java.util.HashMap"  resultType="java.util.HashMap">
+        SELECT
+        a.id,a.sourceId,a.sourceMsg,a.point90,a.type, b.person_name,b.phone,a.ticketType,
+        DATE_FORMAT(a.createTime,'%Y-%m-%d %H:%i:%S') as createTime,
+        c.name as brandName, d.business_name as shopName,od.state,od.payType,od.type as orderType,	IFNULL((case when od.state=1 then od.servicePayTotal else 0 end), 0) as servicePayTotal
+        FROM
+        base_90_detail a
+        inner JOIN base_user b ON a.openId = b.open_id
+        LEFT JOIN base_brand c on a.brandId = c.brand_code
+        left join base_shop d on a.shopId = d.sid
+        inner JOIN (
+        select code,state,paymentRoute as payType,1 as type ,servicePayTotal as servicePayTotal from order_main where state=1
+        union ALL
+        select d.id as code,m.state,m.paymentRoute as payType,1 as type,(IFNULL(d.coinPayTotal,0)+IFNULL(d.payTotal,0)) as servicePayTotal from order_detail d left join order_main m  on m.id=d.orderId where d.state!=6 and m.state=1
+        union ALL
+        SELECT code,state,trade_type as payType,2 as type,ROUND(cash_total/100,2) as servicePayTotal from order_main_90 where state=1)
+        od on od.code =a.sourceId
+
+        WHERE
+        b.isdel = 0
+        AND A.source = 3<!-- 消券-->
+        <if test="personName !=null and personName !=''">
+            AND b.person_name like CONCAT(CONCAT('%', #{personName}),'%')
+        </if>
+        <if test="phone !=null and phone !=''">
+            AND b.phone like CONCAT(CONCAT('%', #{phone}),'%')
+        </if>
+        <if test="startDate!=null and startDate !=''">
+            AND a.createTime >=#{startDate}
+        </if>
+        <if test=" endDate!=null and endDate !=''">
+            <![CDATA[ AND a.createTime <= #{endDate}]]>
+        </if>
+        ORDER BY a.createTime DESC
+        limit #{begin},#{rows}
+    </select>
+
+    <!-- 数据量 所有流水数据量 -->
+    <select id="countCouponUse" parameterType="java.util.HashMap"
+            resultType="java.lang.Integer">
+        SELECT
+        count(a.id)
+        FROM
+        base_90_detail a
+        inner JOIN base_user b ON a.openId = b.open_id
+        LEFT JOIN base_brand c on a.brandId = c.brand_code
+        left join base_shop d on a.shopId = d.sid
+        inner JOIN (
+        select code,state,paymentRoute as payType,1 as type ,servicePayTotal as servicePayTotal from order_main where state=1
+        union ALL
+        select d.id as code,m.state,m.paymentRoute as payType,1 as type,(d.coinPayTotal+d.payTotal)as servicePayTotal from order_detail d left join order_main m  on m.id=d.orderId where d.state!=6 and m.state=1
+        union ALL
+        SELECT code,state,trade_type as payType,2 as type,ROUND(order_total/100,2) as servicePayTotal from order_main_90 where state=1)
+        od on od.code =a.sourceId
+
+        WHERE
+        b.isdel = 0
+        AND A.source = 3<!-- 消券-->
+        <if test="personName !=null and personName !=''">
+            AND b.person_name like CONCAT(CONCAT('%', #{personName}),'%')
+        </if>
+        <if test="phone !=null and phone !=''">
+            AND b.phone like CONCAT(CONCAT('%', #{phone}),'%')
+        </if>
+        <if test="startDate!=null and startDate !=''">
+            AND a.createTime >=#{startDate}
+        </if>
+        <if test=" endDate!=null and endDate !=''">
+            <![CDATA[ AND a.createTime <= #{endDate}]]>
+        </if>
+    </select>
+
+
+    <select id="loadTJInfoLS" parameterType="java.util.HashMap"  resultType="java.util.HashMap">
+        SELECT
+        SUM(case when a.isdel=0 then 1 else 0 end) as count,sum(od.payTotal) as payCoupon,SUM(od.servicePayTotal) as servicePayTotal,sum(goodsTotal) as goodsTotal,
+        SUM(case when a.ticketType=0 then payTotal else 0 end) as payCouponJL,
+        SUM(case when a.ticketType=1 then payTotal else 0 end) as payCouponLG,
+        SUM(case when a.ticketType=2 then payTotal else 0 end) as payCouponTY
+        FROM
+        base_90_detail a
+        inner JOIN base_user b ON a.openId = b.open_id
+        LEFT JOIN base_brand c on a.brandId = c.brand_code
+        left join base_shop d on a.shopId = d.sid
+        inner JOIN (
+        select code,state,paymentRoute as payType,1 as type ,servicePayTotal as servicePayTotal,payCoupon as payTotal,goodsTotal as goodsTotal from order_main where state!=2
+        union ALL
+        select d.id as code,m.state,m.paymentRoute as payType,1 as type,(IFNULL(d.coinPayTotal,0)+IFNULL(d.payTotal,0)) as servicePayTotal,m.payCoupon as payTotal,m.goodsTotal as goodsTotal from order_detail d left join order_main m  on m.id=d.orderId where d.state!=6
+        union ALL
+        SELECT code,state,trade_type as payType,2 as type,ROUND(cash_total/100,2) as servicePayTotal,ROUND(pay_90/100,2) as payTotal,ROUND(pay_90/100,2) as goodsTotal from order_main_90 where state!=3)
+        od on od.code =a.sourceId
+
+        WHERE
+        b.isdel = 0
+        AND A.source = 3<!-- 消券-->
+        <if test="personName !=null and personName !=''">
+            AND b.person_name like CONCAT(CONCAT('%', #{personName}),'%')
+        </if>
+        <if test="phone !=null and phone !=''">
+            AND b.phone like CONCAT(CONCAT('%', #{phone}),'%')
+        </if>
+        <if test="startDate!=null and startDate !=''">
+            AND a.createTime >=#{startDate}
+        </if>
+        <if test=" endDate!=null and endDate !=''">
+            <![CDATA[ AND a.createTime <= #{endDate}]]>
+        </if>
+
+    </select>
+
+    <!-- 数据量 所有流水数据量 -->
+    <select id="loadTJInfo" parameterType="java.util.HashMap"
+            resultType="java.util.HashMap">
+     SELECT
+	count(a.id) as count,
+round(sum(a.point90)/100,2) AS payCoupon,
+	round(SUM(servicePayTotal),2) AS servicePayTotal,
+	round(sum(goodsTotal),2) AS goodsTotal,
+	round(sum(ylTotal),2) AS ylTotal,
+	round(sum(zfbTotal),2) AS zfbTotal,
+	round(sum(wxTotal),2) AS wxTotal,
+	round(sum(jlbTotal),2) AS jlbTotal,
+	round(sum(xzTotal),2) AS xzTotal,
+	round(sum(other),2) AS qtTotal,
+round(sum(case when a.ticketType=0 then a.point90 else 0 end)/100,2) AS payCouponJL,
+round(sum(case when a.ticketType=1 then a.point90 else 0 end)/100,2) AS payCouponLG,
+round(sum(case when a.ticketType=2 then a.point90 else 0 end)/100,2) AS payCouponTY
+
+
+
+FROM
+	base_90_detail a
+INNER JOIN base_user b ON a.openId = b.open_id
+LEFT JOIN base_brand c ON a.brandId = c.brand_code
+LEFT JOIN base_shop d ON a.shopId = d.sid
+INNER JOIN (
+	SELECT
+		a.CODE,
+(case when (a.state =1 &amp;&amp; a.paymentRoute=1) then a.payTotal else 0 end) AS ylTotal,
+        (case when (a.state =1 &amp;&amp; a.paymentRoute=2) then a.payTotal else 0 end) AS zfbTotal,
+        (case when (a.state =1 &amp;&amp; a.paymentRoute=3) then a.payTotal else 0 end) AS wxTotal,
+        (case when a.state =1 then a.coinPayTotal else 0 end) AS jlbTotal,
+        (case when (a.state =1 &amp;&amp; a.paymentRoute=7) then a.payTotal else 0 end) AS xzTotal,
+(case when (a.state =1 &amp;&amp; a.paymentRoute not in (1,2,3,7)) then a.payTotal else 0 end) AS other,
+		a.state,
+a.goodsTotal,
+		1 AS type,
+a.paymentRoute AS payType,
+		a.servicePayTotal AS servicePayTotal
+	FROM
+		order_main a
+	WHERE
+		a.state =1
+	UNION ALL
+		SELECT
+			d.id AS CODE,
+				(case when (m.state =1 &amp;&amp; m.paymentRoute=1) then d.payTotal else 0 end) AS ylTotal,
+        (case when (m.state =1 &amp;&amp; m.paymentRoute=2) then d.payTotal else 0 end) AS zfbTotal,
+        (case when (m.state =1 &amp;&amp; m.paymentRoute=3) then d.payTotal else 0 end) AS wxTotal,
+        (case when m.state =1 then d.coinPayTotal else 0 end) AS jlbTotal,
+        (case when (m.state =1 &amp;&amp; m.paymentRoute=7) then d.payTotal else 0 end) AS xzTotal,
+(case when (m.state =1 &amp;&amp; m.paymentRoute not in (1,2,3,7)) then d.payTotal else 0 end) AS other,
+			m.state,
+			m.paymentRoute AS payType,
+m.goodsTotal,
+			1 AS type,
+			(
+				IFNULL(d.coinPayTotal, 0) + IFNULL(d.payTotal, 0)
+			) AS servicePayTotal
+		FROM
+			order_detail d
+		LEFT JOIN order_main m ON m.id = d.orderId
+		WHERE
+			d.state != 6
+and m.state=1
+		UNION ALL
+			SELECT
+				CODE,
+round((case when (state =1 &amp;&amp; trade_type='UNIONPAY') then order_total else 0 end)/100,2) AS ylTotal,
+        round((case when (state =1 &amp;&amp; trade_type='ZFB-MICROPAY')then order_total else 0 end)/100,2) AS zfbTotal,
+        round((case when (state =1 &amp;&amp; trade_type='MICROPAY') then order_total else 0 end)/100,2) AS wxTotal,
+        round((case when state =1 then pay_coin else 0 end)/100,2) AS jlbTotal,
+        round((case when (state =1 &amp;&amp; trade_type='offline') then order_total else 0 end)/100,2) AS xzTotal,
+round((case when (state =1 &amp;&amp; trade_type not in ('ZFB-MICROPAY','UNIONPAY','MICROPAY','offline')) then order_total else 0 end)/100,2) AS other,
+				state,
+				trade_type AS payType,
+ROUND(balance_90 / 100, 2) AS goodsTotal,
+				2 AS type,
+				ROUND(cash_total / 100, 2) AS servicePayTotal
+			FROM
+				order_main_90
+			WHERE
+				state =1
+) od ON od. CODE = a.sourceId
+        WHERE
+        b.isdel = 0
+        AND A.source = 3<!-- 消券-->
+        <if test="personName !=null and personName !=''">
+            AND b.person_name like CONCAT(CONCAT('%', #{personName}),'%')
+        </if>
+        <if test="phone !=null and phone !=''">
+            AND b.phone like CONCAT(CONCAT('%', #{phone}),'%')
+        </if>
+        <if test="startDate!=null and startDate !=''">
+            AND a.createTime >=#{startDate}
+        </if>
+        <if test=" endDate!=null and endDate !=''">
+            <![CDATA[ AND a.createTime <= #{endDate}]]>
+        </if>
+    </select>
+
+    <select id="findBase90Detail" parameterType="java.util.Map" resultType="java.util.Map">
+        SELECT a.*,b.name,c.person_name,c.phone,d.agent_name,b.cardTotal,f.name as brandName from offline_card_90_detail a
+        LEFT JOIN offline_card_90 b on a.mainId=b.id
+        LEFT JOIN base_user c on c.open_id=a.openId
+        LEFT JOIN base_agent d on d.agent_code=b.agentId
+        LEFT JOIN offline_card_90_grant e on e.detailId=a.id
+        LEFT JOIN base_brand f on f.brand_code=e.brandId
+        where a.state=1
+        <if test="startDate!=null and startDate !=''">
+            AND a.useTime >=#{startDate}
+        </if>
+        <if test=" endDate!=null and endDate !=''">
+            <![CDATA[ AND a.useTime <= #{endDate}]]>
+        </if>
+        <if test="personName!=null and personName!=''">
+        and c.person_name like CONCAT(CONCAT('%', #{personName}),'%')
+        </if>
+        <if test="name!=null and name!=''">
+        and b.name like CONCAT(CONCAT('%', #{name}),'%')
+        </if>
+        <if test="brandName!=null and brandName!=''">
+        and f.name like CONCAT(CONCAT('%', #{brandName}),'%')
+        </if>
+ORDER BY a.useTime
+ limit #{begin},#{rows}
+    </select>
+
+    <select id="countBase90Detail" parameterType="java.util.Map" resultType="java.lang.Integer">
+        SELECT count(a.id) from offline_card_90_detail a
+        LEFT JOIN offline_card_90 b on a.mainId=b.id
+        LEFT JOIN base_user c on c.open_id=a.openId
+        LEFT JOIN base_agent d on d.agent_code=b.agentId
+        LEFT JOIN offline_card_90_grant e on e.detailId=a.id
+        LEFT JOIN base_brand f on f.brand_code=e.brandId
+        where a.state=1
+        <if test="startDate!=null and startDate !=''">
+            AND a.useTime >=#{startDate}
+        </if>
+        <if test=" endDate!=null and endDate !=''">
+            <![CDATA[ AND a.useTime <= #{endDate}]]>
+        </if>
+        <if test="personName!=null and personName!=''">
+            and c.person_name like CONCAT(CONCAT('%', #{personName}),'%')
+        </if>
+        <if test="name!=null and name!=''">
+            and b.name like CONCAT(CONCAT('%', #{name}),'%')
+        </if>
+        <if test="brandName!=null and brandName!=''">
+            and f.name like CONCAT(CONCAT('%', #{brandName}),'%')
+        </if>
+ORDER BY a.useTime
+    </select>
+
+
+    <select id="loadSumInfo" parameterType="java.util.Map" resultType="java.util.Map">
+        SELECT sum(b.cardTotal) as cardTotal,count(a.id) as orderCount from offline_card_90_detail a
+        LEFT JOIN offline_card_90 b on a.mainId=b.id
+        LEFT JOIN base_user c on c.open_id=a.openId
+        LEFT JOIN base_agent d on d.agent_code=b.agentId
+        LEFT JOIN offline_card_90_grant e on e.detailId=a.id
+        LEFT JOIN base_brand f on f.brand_code=e.brandId
+        where a.state=1
+        <if test="startDate!=null and startDate !=''">
+            AND a.useTime >=#{startDate}
+        </if>
+        <if test=" endDate!=null and endDate !=''">
+            <![CDATA[ AND a.useTime <= #{endDate}]]>
+        </if>
+        <if test="personName!=null and personName!=''">
+            and c.person_name like CONCAT(CONCAT('%', #{personName}),'%')
+        </if>
+        <if test="name!=null and name!=''">
+            and b.name like CONCAT(CONCAT('%', #{name}),'%')
+        </if>
+        <if test="brandName!=null and brandName!=''">
+            and f.name like CONCAT(CONCAT('%', #{brandName}),'%')
+        </if>
+    </select>
+
+    <select id="queryMember" parameterType="java.util.Map" resultType="java.util.Map">
+        SELECT
+        a.id,a.person_name,a.sex,a.phone,a.create_time,a.open_id,ROUND(a.balance_90 / 100, 2) AS balance_90,a.state,a.birthday
+        ,IFNULL(b.allTotal,0) as allTotal,IFNULL(buyCount,0) as buyCount ,
+        IFNULL((b.chargeAmount + b.giveAmount),0 )AS 90bei
+        FROM base_user a
+        left join
+        (
+        SELECT openId,ROUND(sum(point90) / 100, 2) as allTotal from base_90_detail d where d.`inOut`=0 and isdel=0 and LENGTH(openId)>0
+        group by openId
+        ) b on a.open_id=b.openId
+        left join
+        (select open_id,count(1) as buyCount from (
+        select b.open_id from order_main m
+        left join base_user b on m.buyUserId=b.id and b.isdel=0 where m.isdel=0 and b.open_id is not null and m.state not in (0,2)
+        UNION all
+        select open_id from order_main_90 where isdel=0 and state not in (0,2)
+        ) m
+        group by open_id
+        ) m on m.open_id=a.open_id
+        LEFT JOIN t_user_coin b ON b.userId = a.id
+        where a.isdel = 0
+        <if test="startDate!=null and startDate !=''">
+            AND a.create_time >=#{startDate}
+        </if>
+        <if test=" endDate!=null and endDate !=''">
+            <![CDATA[ AND a.create_time <= #{endDate}]]>
+        </if>
+        <if test="phone!=null and phone !=''">
+            and a.phone like CONCAT(CONCAT('%', #{phone}),'%')
+        </if>
+        <if test="sortName!=null and sortName!=''">
+            order by ${sortName} ${sortOrder}
+        </if>
+        <if test="sortName==null || sortName==''">
+            ORDER BY a.create_time desc
+        </if>
+        limit #{begin},#{rows}
+    </select>
+
+    <select id="queryMemberCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+        SELECT count(1) from base_user a
+        where a.isdel = 0
+        <if test="startDate!=null and startDate !=''">
+            AND a.create_time >=#{startDate}
+        </if>
+        <if test=" endDate!=null and endDate !=''">
+            <![CDATA[ AND a.create_time <= #{endDate}]]>
+        </if>
+        <if test="phone!=null and phone !=''">
+            and a.phone like CONCAT(CONCAT('%', #{phone}),'%')
+        </if>
+    </select>
+
+    <select id="loadSumMember" parameterType="java.util.Map" resultType="java.util.Map">
+        SELECT a.sex,a.state,count(a.id)  as count from base_user a where a.isdel=0
+        <if test="startDate!=null and startDate !=''">
+            AND a.create_time >=#{startDate}
+        </if>
+        <if test=" endDate!=null and endDate !=''">
+            <![CDATA[ AND a.create_time <= #{endDate}]]>
+        </if>
+        <if test="phone!=null and phone !=''">
+            and a.phone like CONCAT(CONCAT('%', #{phone}),'%')
+        </if>
+GROUP BY a.sex,a.state
+
+    </select>
+
+    <select id="query90Use" parameterType="java.util.Map" resultType="java.util.Map">
+SELECT
+	a.name as brandName, count(CASE WHEN b.state = 0 THEN 1 END) AS unUse,
+	count(CASE WHEN b.state = 1 THEN 1 END) AS inUse,c.name as activityName,count(case when b.state='2' then 1 end) as reUse,c.cardTotal
+FROM
+	(
+		SELECT
+			a.*, b. name
+		FROM
+			offline_card_90_grant a
+		LEFT JOIN base_brand b ON a.brandId = b.brand_code
+		where 1=1
+        <if test="brandName!=null and brandName !=''">
+            and b.name like CONCAT(CONCAT('%', #{brandName}),'%')
+        </if>
+	) a
+LEFT JOIN offline_card_90_detail b ON b.id = a.detailId
+LEFT JOIN offline_card_90 c on c.id=b.mainId
+GROUP BY
+	a.brandId
+        limit #{begin},#{rows}
+    </select>
+
+    <select id="query90UseCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+SELECT count(a.brandName) from (SELECT
+	a.name as brandName, count(CASE WHEN b.state = 0 THEN 1 END) AS unUse,
+	count(CASE WHEN b.state = 1 THEN 1 END) AS inUse,c.name as activityName,count(case when b.state='2' then 1 end) as reUse
+FROM
+	(
+		SELECT
+			a.*, b. name
+		FROM
+			offline_card_90_grant a
+		LEFT JOIN base_brand b ON a.brandId = b.brand_code
+        where 1=1
+        <if test="brandName!=null and brandName !=''">
+            and b.name like CONCAT(CONCAT('%', #{brandName}),'%')
+        </if>
+	) a
+LEFT JOIN offline_card_90_detail b ON b.id = a.detailId
+LEFT JOIN offline_card_90 c on c.id=b.mainId
+GROUP BY
+	a.brandId) a
+    </select>
+<select id="loadTJUseNum" resultType="java.util.Map" parameterType="java.util.Map">
+    SELECT COUNT(count) as useCount from(
+SELECT
+	count(a.open_id) AS count
+FROM
+	(
+					SELECT
+					b.open_id
+				FROM
+					order_main a
+				LEFT JOIN base_user b on b.id=a.buyUserId
+                LEFT JOIN t_sys_user c on c.id=a.userCode
+				WHERE
+					a.state!=0 and a.isdel = 0
+    <if test="start!=null and start !=''">
+        AND a.createTime >=#{start}
+    </if>
+    <if test=" end!=null and end !=''">
+        <![CDATA[ AND a.createTime <= #{end}]]>
+    </if>
+    <if test=" identity==4 and identity_code!=null and identity_code!=''">
+        and c.id=#{identity_code}
+    </if>
+    <if test=" identity==3 and identity_code!=null and identity_code!=''">
+        and c.identity_code=#{identity_code}
+    </if>
+			UNION ALL
+				SELECT
+					open_id
+				FROM
+					order_main_90 t
+    LEFT JOIN t_sys_user c on c.id=t.user_code
+				WHERE
+					t.ISDEL = 0
+    <if test="start!=null and start !=''">
+        AND create_time >=#{start}
+    </if>
+    <if test=" end!=null and end !=''">
+        <![CDATA[ AND create_time <= #{end}]]>
+    </if>
+    <if test=" identity==4 and identity_code!=null and identity_code!=''">
+        and c.id=#{identity_code}
+    </if>
+    <if test=" identity==3 and identity_code!=null and identity_code!=''">
+        and c.identity_code=#{identity_code}
+    </if>
+	) a GROUP BY a.open_id
+)b
+</select>
+
+    <select id="findCouponList" parameterType="java.util.HashMap"  resultType="com.biz.model.Pmodel.basic.PbaseDetail">
+        SELECT
+        a.id,a.sourceId,a.sourceMsg,a.point90/100 as point90,a.type, b.person_name,b.phone,
+        DATE_FORMAT(a.createTime,'%Y-%m-%d %H:%i:%S') as createTime,a.ticketType,
+        c.name as brandName, d.business_name as shopName,od.state,od.payType,od.type as orderType, IFNULL((case when od.state=1 then od.servicePayTotal else 0 end), 0) as servicePayTotal
+        FROM
+        base_90_detail a
+        inner JOIN base_user b ON a.openId = b.open_id
+        LEFT JOIN base_brand c on a.brandId = c.brand_code
+        left join base_shop d on a.shopId = d.sid
+        inner JOIN (
+        select code,state,paymentRoute as payType,1 as type ,servicePayTotal as servicePayTotal from order_main where state=1
+        union ALL
+        select d.id as code,m.state,m.paymentRoute as payType,1 as type,(IFNULL(d.coinPayTotal,0)+IFNULL(d.payTotal,0)) as servicePayTotal from order_detail d left join order_main m  on m.id=d.orderId where d.state!=6 and m.state=1
+        union ALL
+        SELECT code,state,trade_type as payType,2 as type,ROUND(cash_total/100,2) as servicePayTotal from order_main_90 where state=1)
+        od on od.code =a.sourceId
+
+        WHERE
+        b.isdel = 0
+        AND A.source = 3<!-- 消券-->
+        <if test="personName !=null and personName !=''">
+            AND b.person_name like CONCAT(CONCAT('%', #{personName}),'%')
+        </if>
+        <if test="phone !=null and phone !=''">
+            AND b.phone like CONCAT(CONCAT('%', #{phone}),'%')
+        </if>
+        <if test="startDate!=null and startDate !=''">
+            AND a.createTime >=#{startDate}
+        </if>
+        <if test=" endDate!=null and endDate !=''">
+            <![CDATA[ AND a.createTime <= #{endDate}]]>
+        </if>
+        ORDER BY a.createTime DESC
+    </select>
+
+
+    <select id="findBalance90DetailById" resultType="java.util.Map" parameterType="java.util.Map">
+         SELECT
+	ifnull(b.point90,'') AS point90All,
+	ifnull(f. NAME,'') AS name,
+	ifnull(b.source,'') AS source,
+	ifnull(b.type,'')  AS sendType,
+	ifnull(a.point90,'') AS point90,
+	ifnull(b.sorts,'') AS sorts,
+	ifnull(DATE_FORMAT(
+		b.createTime,
+		'%Y-%m-%d %H:%i:%s'
+	) ,'') AS createTime,
+	IFNULL(DATE_FORMAT(
+		b.expireTime,
+		'%Y-%m-%d %H:%i:%s'
+	),'') as expireTime
+FROM
+	base_90_detail_log a
+LEFT JOIN base_90_detail b ON b.id = a.sourceId
+LEFT JOIN base_90_detail c on c.sourceId=a.orderId
+LEFT JOIN base_brand f ON f.brand_code = b.brandId
+WHERE
+	c.id=#{id}
+    </select>
+</mapper>

@@ -1,0 +1,1956 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="baseDetailMapper">
+
+    <!-- 自动发券 -->
+    <select id="findAutoPage"  parameterType="com.framework.model.Params" resultType="com.biz.model.Pmodel.api.OrderMainUnion">
+        select z.* from(
+            SELECT
+                d.agent_name,
+                b. NAME AS brand_name,
+                c.business_name,
+                t. CODE,
+                t.order_total,
+                t.gift_90,
+                t.commission,
+                ROUND(
+                t.gift_90 * t.commission / 10000,
+                2
+                ) card_fee,
+                t.state,
+                ifnull(u.personName,'无') AS person_name,
+                t.trade_type,
+                ifnull(e.person_name, '暂无') AS userName,
+                ifnull(e.phone, '暂无') AS userPhone,
+                t.create_time,ifnull(d90.ticketType,0) as ticketType
+        ,IFNULL(d90.point90Now,0)as point90Now,IFNULL(d90.state,-1) as writeOffState,
+        (case when (d90.point90=d90.point90Now) then 2 when (d90.point90Now=0) then 1  when (d90.point90Now is null) then 2 else 3 end) as writeOffType
+            FROM
+                order_main_union t
+            LEFT JOIN base_user e ON e.open_id = t.open_id
+            left join t_sys_user u on u.id = t.user_code
+            left join base_brand b on b.brand_code = t.brand_code
+            LEFT JOIN base_agent d on b.agent_code=d.agent_code
+            left join base_shop c on t.shop_code = c.sid
+            left join base_90_detail d90 on d90.sourceId=t.code and d90.isdel=0 and d90.source=1 and d90.inOut=1
+            WHERE t.ISDEL = 0
+            <if test="parm.agent!=null and parm.agent!='' and parm.type!=4">
+                and   b.agent_code=#{parm.agent}
+            </if>
+            <if test="parm.brand!=null and parm.brand!='' and parm.type!=4">
+                and t.brand_code=#{parm.brand}
+            </if>
+        <if test="parm.shop!=null and parm.shop!='' and parm.type!=4">
+            and   c.sid=#{parm.shop}
+        </if>
+            <if test="parm.start!=null and parm.start!=''">
+                and    date_format(t.CREATE_TIME,'%Y-%m-%d %H:%i:%s')>= date_format(#{parm.start},'%Y-%m-%d %H:%i:%s')
+            </if>
+            <if test="parm.end!=null and parm.end!=''">
+                and  date_format(t.CREATE_TIME,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{parm.end},'%Y-%m-%d %H:%i:%s')
+            </if>
+            <if test="parm.phone!=null and parm.phone!=''">
+                and  e.phone = #{parm.phone}
+            </if>
+            <if test="parm.tradeType!=null and parm.tradeType!=''">
+                and  t.trade_type = #{parm.tradeType}
+            </if>
+            union all
+                SELECT
+                    d.agent_name,
+                    c. NAME,
+                    '无' AS business_name,
+                    e. CODE,
+                    e.allTotal*100,
+                    a.point90 as  gift_90,
+                    0 AS commission,
+                    0 card_fee,
+                    1 as state,
+                    '无' as person_name,
+                    'MICROPAY' as trade_type,
+                    ifnull(f.person_name, '暂无') AS userName,
+                    ifnull(f.phone, '暂无') AS userPhone,
+                    a.createTime as create_time,ifnull(a.ticketType,0) as ticketType
+                    ,IFNULL(a.point90Now,0)as point90Now,a.state as writeOffState,
+                    (case when (a.point90=a.point90Now) then 2 when (a.point90Now=0) then 1 when (a.point90Now is null) then 2 else 3 end) as writeOffType
+                FROM
+                        base_90_detail a
+                LEFT JOIN order_detail b ON a.sourceId = b.id
+                LEFT JOIN base_brand c ON a.brandId = c.brand_code
+                LEFT JOIN base_agent d ON c.agent_code = d.agent_code
+                LEFT JOIN order_main e ON b.orderId = e.id
+                left join base_user f on a.userId = f.id
+                WHERE
+                    b.id IS NOT NULL
+                AND a.source = 1
+                <if test="parm.agent!=null and parm.agent!='' and parm.type!=4">
+                    and   c.agent_code=#{parm.agent}
+                </if>
+                <if test="parm.brand!=null and parm.brand!='' and parm.type!=4">
+                    and a.brandId=#{parm.brand}
+                </if>
+                <if test="parm.shop!=null and parm.shop!='' and parm.type!=4">
+                    and   a.shopId=#{parm.shop}
+                </if>
+                <if test="parm.start!=null and parm.start!=''">
+                    and    date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{parm.start},'%Y-%m-%d %H:%i:%s')
+                </if>
+                <if test="parm.end!=null and parm.end!=''">
+                    and  date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{parm.end},'%Y-%m-%d %H:%i:%s')
+                </if>
+                <if test="parm.phone!=null and parm.phone!=''">
+                    and  f.phone = #{parm.phone}
+                </if>
+                <if test="parm.tradeType!=null and parm.tradeType!=''">
+                    and  2 = #{parm.tradeType}
+                </if>
+        )as z
+        where 1=1
+        <if test="parm.writeOffType!=null and parm.writeOffType!='' and parm.writeOffType!=0">
+            <if test="parm.writeOffType==1">
+                and writeOffType in(1,3)
+            </if>
+            <if test="parm.writeOffType==2">
+                and  writeOffType=2
+            </if>
+        </if>
+    order by z.CREATE_TIME desc
+        limit ${page},${rows}
+    </select>
+    <!-- 代理商查询品牌 -->
+    <select id="countAuto"  parameterType="com.framework.model.Params" resultType="com.biz.model.Pmodel.api.OrderMainUnion">
+        select z.CODE from(
+        SELECT
+            t. CODE,(case when (d90.point90=d90.point90Now) then 2 when (d90.point90Now=0) then 1  when (d90.point90Now is null) then 2 else 3 end) as writeOffType
+        FROM
+        order_main_union t
+        LEFT JOIN base_user e ON e.open_id = t.open_id
+        left join t_sys_user u on u.id = t.user_code
+        left join base_brand b on b.brand_code = t.brand_code
+        LEFT JOIN base_agent d on b.agent_code=d.agent_code
+        left join base_shop c on t.shop_code = c.sid
+        left join base_90_detail d90 on d90.sourceId=t.code and d90.isdel=0 and d90.source=1 and d90.inOut=1
+        WHERE t.ISDEL = 0
+        <if test="parm.agent!=null and parm.agent!='' and parm.type!=4">
+            and   b.agent_code=#{parm.agent}
+        </if>
+        <if test="parm.brand!=null and parm.brand!='' and parm.type!=4">
+            and t.brand_code=#{parm.brand}
+        </if>
+        <if test="parm.shop!=null and parm.shop!='' and parm.type!=4">
+            and   c.sid=#{parm.shop}
+        </if>
+        <if test="parm.start!=null and parm.start!=''">
+            and    date_format(t.CREATE_TIME,'%Y-%m-%d %H:%i:%s')>= date_format(#{parm.start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="parm.end!=null and parm.end!=''">
+            and  date_format(t.CREATE_TIME,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{parm.end},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="parm.phone!=null and parm.phone!=''">
+            and  e.phone = #{parm.phone}
+        </if>
+        <if test="parm.tradeType!=null and parm.tradeType!=''">
+            and  t.trade_type = #{parm.tradeType}
+        </if>
+        union all
+        SELECT
+            a.id as CODE,(case when (a.point90=a.point90Now) then 2 when (a.point90Now=0) then 1 when (a.point90Now is null) then 2 else 3 end) as writeOffType
+        FROM
+        base_90_detail a
+        LEFT JOIN order_detail b ON a.sourceId = b.id
+        LEFT JOIN base_brand c ON a.brandId = c.brand_code
+        LEFT JOIN base_agent d ON c.agent_code = d.agent_code
+        LEFT JOIN order_main e ON b.orderId = e.id
+        left join base_user f on a.userId = f.id
+        WHERE
+        b.id IS NOT NULL
+        AND a.source = 1
+        <if test="parm.agent!=null and parm.agent!='' and parm.type!=4">
+            and   c.agent_code=#{parm.agent}
+        </if>
+        <if test="parm.brand!=null and parm.brand!='' and parm.type!=4">
+            and a.brandId=#{parm.brand}
+        </if>
+        <if test="parm.shop!=null and parm.shop!='' and parm.type!=4">
+            and   a.shopId=#{parm.shop}
+        </if>
+        <if test="parm.start!=null and parm.start!=''">
+            and    date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{parm.start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="parm.end!=null and parm.end!=''">
+            and  date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{parm.end},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="parm.phone!=null and parm.phone!=''">
+            and  f.phone = #{parm.phone}
+        </if>
+        <if test="parm.tradeType!=null and parm.tradeType!=''">
+            and  2 = #{parm.tradeType}
+        </if>
+        )as z where 1=1
+        <if test="parm.writeOffType!=null and parm.writeOffType!='' and parm.writeOffType!=0">
+            <if test="parm.writeOffType==1">
+                and writeOffType in(1,3)
+            </if>
+            <if test="parm.writeOffType==2">
+                and  writeOffType=2
+            </if>
+        </if>
+    </select>
+    <!-- 代理商查询品牌 -->
+    <select id="findPage"  parameterType="com.framework.model.Params" resultType="com.biz.model.Pmodel.basic.PbaseDetail">
+        SELECT
+        g.cardName,
+        g.cardType,
+        g.cardCode,
+        a.orderTotal,
+        a.orderState,
+        a.tradeType,
+        a.commission,
+        ifnull(e.phone, '暂无') AS userPhone,
+        a.id,
+        a.source,
+        a.sourceMsg,
+        a.type,
+        a.sourceId,
+        a.point90,
+        date_format(
+        a.createTime,
+        '%Y-%m-%d %H:%i:%s'
+        ) AS createTime,
+        date_format(
+        a.cancelTime,
+        '%Y-%m-%d %H:%i:%s'
+        ) AS cancelTime,
+        b. NAME AS brandName,
+        ifnull(a.ticketType,0) as ticketType,
+        c.agent_name AS agentName,
+        d.business_name AS shopIdName,
+        ifnull(e.person_name, '暂无') AS userName,
+        ifnull(f.personName, '暂无') AS operUserName,
+        a.isdel,IFNULL(a.point90Now,0)as point90Now,a.state as writeOffState,
+        (case when (a.point90=a.point90Now) then 2 when (a.point90Now=0) then 1 when (a.point90Now is null) then 2 else 3 end) as writeOffType
+        FROM
+        base_90_detail a
+        LEFT JOIN base_brand b ON b.brand_code = a.brandId
+        LEFT JOIN base_agent c ON c.agent_code = b.agent_code
+        LEFT JOIN base_shop d ON d.sid = a.shopId
+        LEFT JOIN base_user e ON e.open_id = a.openId
+        LEFT JOIN t_sys_user f ON f.id = a.userCode
+        LEFT JOIN (
+        SELECT
+        g.cardNumber,
+        j. NAME AS cardName,
+        i. NAME AS cardType,
+        i.id as cardTypeId,
+        g.cardCode AS cardCode
+        FROM
+        offline_card_90_detail g
+        inner JOIN offline_card_90_grant h ON h.detailId = g.id
+        inner JOIN offline_card_90_type i ON i.id = h.typeId
+        inner JOIN offline_card_90 j ON j.id = g.mainId
+        ) g on g.cardCode=a.sourceId
+        WHERE
+       1=1
+        <if test="parm.agent!=null and parm.agent!='' and parm.type!=4">
+            and   c.agent_code=#{parm.agent}
+        </if>
+        <if test="parm.brand!=null and parm.brand!='' and parm.type!=4">
+            and a.brandId=#{parm.brand}
+        </if>
+        <if test="parm.shop!=null and parm.shop!='' and parm.type!=4">
+            and   d.sid=#{parm.shop}
+        </if>
+        <if test="parm.type!=null and parm.type!=''">
+            and   a.source=#{parm.type}
+        </if>
+        <if test="parm.start!=null and parm.start!=''">
+            and    date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{parm.start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="parm.end!=null and parm.end!=''">
+            and  date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{parm.end},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="parm.phone!=null and parm.phone!=''">
+            and  e.phone = #{parm.phone}
+        </if>
+        <if test="parm.cardType!=null and parm.cardType!=''">
+            and  g.cardTypeId = #{parm.cardType}
+        </if>
+        <if test="parm.writeOffType!=null and parm.writeOffType!='' and parm.writeOffType!=0">
+            <if test="parm.writeOffType==1">
+                and  (case when (a.point90=a.point90Now) then 2 when (a.point90Now=0) then 1 when (a.point90Now is null) then 2 else 3 end) in (1,3)
+            </if>
+            <if test="parm.writeOffType==2">
+                and  (case when (a.point90=a.point90Now) then 2 when (a.point90Now=0) then 1 when (a.point90Now is null) then 2 else 3 end)=2
+            </if>
+        </if>
+        group by a.id
+        order by a.createTime desc
+        limit ${page},${rows}
+    </select>
+
+
+    <select id="count" parameterType="com.framework.model.Params"  resultType="java.lang.Integer">
+        select a.id from base_90_detail a
+        LEFT JOIN base_brand b ON b.brand_code = a.brandId
+        LEFT JOIN base_agent c ON c.agent_code = b.agent_code
+        LEFT JOIN base_shop d ON d.sid = a.shopId
+        LEFT JOIN base_user e ON e.open_id = a.openId
+        LEFT JOIN t_sys_user f ON f.id = a.userCode
+        LEFT JOIN (
+        SELECT
+        g.cardNumber,
+        j. NAME AS cardName,
+        i. NAME AS cardType,
+        i.id as cardTypeId,
+        g.cardCode AS cardCode
+        FROM
+        offline_card_90_detail g
+        inner JOIN offline_card_90_grant h ON h.detailId = g.id
+        inner JOIN offline_card_90_type i ON i.id = h.typeId
+        inner JOIN offline_card_90 j ON j.id = g.mainId
+        ) g on g.cardCode=a.sourceId
+        WHERE
+        1=1
+        <if test="parm.agent!=null and parm.agent!='' and parm.type!=4">
+        and    c.agent_code=#{parm.agent}
+        </if>
+        <if test="parm.brand!=null and parm.brand!='' and parm.type!=4">
+            and   a.brandId=#{parm.brand}
+        </if>
+        <if test="parm.shop!=null and parm.shop!='' and parm.type!=4">
+            and   d.sid=#{parm.shop}
+        </if>
+        <if test="parm.type!=null and parm.type!=''">
+            and   a.source=#{parm.type}
+        </if>
+        <if test="parm.start!=null and parm.start!=''">
+            and    date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{parm.start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="parm.end!=null and parm.end!=''">
+            and    date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{parm.end},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="parm.phone!=null and parm.phone!=''">
+            and  e.phone = #{parm.phone}
+        </if>
+        <if test="parm.cardType!=null and parm.cardType!=''">
+            and  g.cardTypeId = #{parm.cardType}
+        </if>
+        <if test="parm.writeOffType!=null and parm.writeOffType!='' and parm.writeOffType!=0">
+            <if test="parm.writeOffType==1">
+                and  (case when (a.point90=a.point90Now) then 2 when (a.point90Now=0) then 1 when (a.point90Now is null) then 2 else 3 end) in (1,3)
+            </if>
+            <if test="parm.writeOffType==2">
+                and  (case when (a.point90=a.point90Now) then 2 when (a.point90Now=0) then 1 when (a.point90Now is null) then 2 else 3 end)=2
+            </if>
+        </if>
+        group by a.id
+    </select>
+<select id="findStatisticsPage" parameterType="com.framework.model.Params" resultType="com.biz.model.Pmodel.basic.PbaseDetail">
+    SELECT
+    DATE_FORMAT(a.createTime, '%Y-%m-%d') AS createTime,
+    b. NAME as brandName,
+    d.person_name  as userName,
+    sum(CASE when a.source=1 then a.point90 else 0 end) AS point90z,
+    sum(CASE when a.source=2 then a.point90 else 0 end) AS point90s,
+    sum(CASE when a.source=4 then a.point90 else 0 end) AS point90k,
+    sum(case when a.ticketType=0 then a.point90 end ) as balance_90,
+    sum(case when a.ticketType=1 then a.point90 end) as balance_90_shop,
+    sum(case when a.ticketType=2 then a.point90 end) as balance_90_experience,
+    count(a.id) AS count,
+    e.count as pcount
+    FROM
+    base_90_detail a
+    LEFT JOIN base_brand b on b.brand_code=a.brandId
+    LEFT JOIN base_agent c on c.agent_code=b.agent_code
+    LEFT JOIN base_biz_person d on d.code=b.biz_code
+    INNER JOIN(
+    SELECT count(x.openId) as count,x.brandId,x.days as days from (
+    select a.openId,a.brandId,TO_DAYS(a.createTime) as days from base_90_detail a
+    where a.source in (1,2,4)  and a.isdel=0
+    <if test="parm.source!=null and parm.source!=''">
+        and   a.source=#{parm.source}
+    </if>
+    GROUP BY a.openId,a.brandId,TO_DAYS(a.createTime)
+    order by a.createTime desc
+    )x
+    GROUP BY x.brandId,x.days
+    order by x.days desc
+
+    )e on e.brandId=a.brandId and e.days=TO_DAYS(a.createTime)
+    where a.source in (1,2,4) and a.isdel=0
+    <if test="parm.type==1 and parm.code!=null and parm.code!=''">
+        and   a.brandId=#{parm.code}
+    </if>
+    <if test="parm.source!=null and parm.source!=''">
+        and   a.source=#{parm.source}
+    </if>
+    <if test="parm.agent!=null and parm.agent!=''">
+        and   b.agent_code=#{parm.agent}
+    </if>
+    <if test="parm.brand!=null and parm.brand!=''">
+        and   a.brandId=#{parm.brand}
+    </if>
+    <if test="parm.type==2  and parm.code!=null and parm.code!=''">
+        and   b.agent_code=#{parm.code}
+    </if>
+    <if test="parm.type==3  and parm.code!=null and parm.code!=''">
+        and   b.biz_code=#{parm.code}
+    </if>
+    <if test="parm.startTime!=null and parm.startTime!=''">
+        and    date_format(a.createTime,'%Y-%m-%d')>= date_format(#{parm.startTime},'%Y-%m-%d')
+    </if>
+    <if test="parm.endTime!=null and parm.endTime!=''">
+        and    date_format(a.createTime,'%Y-%m-%d')&lt;= date_format(#{parm.endTime},'%Y-%m-%d')
+    </if>
+    GROUP BY a.brandId,a.source,TO_DAYS(a.createTime)
+    order by a.createTime desc
+    limit ${page},${rows}
+</select>
+
+
+    <select id="countStatistics" parameterType="com.framework.model.Params" resultType="com.biz.model.Pmodel.basic.PbaseDetail">
+        SELECT
+        DATE_FORMAT(a.createTime, '%Y-%m-%d') AS createTime,
+        b. NAME as brandName,
+        d.person_name  as userName,
+        sum(CASE when a.source=1 then a.point90 else 0 end) AS point90z,
+        sum(CASE when a.source=2 then a.point90 else 0 end) AS point90s,
+        sum(CASE when a.source=4 then a.point90 else 0 end) AS point90k,
+        count(a.id) AS count,
+        e.count as pcount
+        FROM
+        base_90_detail a
+        LEFT JOIN base_brand b on b.brand_code=a.brandId
+        LEFT JOIN base_agent c on c.agent_code=b.agent_code
+        LEFT JOIN base_biz_person d on d.code=b.biz_code
+        INNER JOIN(
+        SELECT count(x.openId) as count,x.brandId,x.days as days from (
+        select a.openId,a.brandId,TO_DAYS(a.createTime) as days from base_90_detail a
+        where a.source in (1,2,4) and a.isdel=0
+        <if test="parm.source!=null and parm.source!=''">
+            and   a.source=#{parm.source}
+        </if>
+        GROUP BY a.openId,a.brandId,TO_DAYS(a.createTime)
+        order by a.createTime desc
+        )x
+        GROUP BY x.brandId,x.days
+        order by x.days desc
+
+        )e on e.brandId=a.brandId and e.days=TO_DAYS(a.createTime)
+        where a.source in (1,2,4) and a.isdel=0
+        <if test="parm.type==1 and parm.code!=null and parm.code!=''">
+            and   a.brandId=#{parm.code}
+        </if>
+        <if test="parm.type==2  and parm.code!=null and parm.code!=''">
+            and   b.agent_code=#{parm.code}
+        </if>
+        <if test="parm.source!=null and parm.source!=''">
+            and   a.source=#{parm.source}
+        </if>
+        <if test="parm.agent!=null and parm.agent!=''">
+            and   b.agent_code=#{parm.agent}
+        </if>
+        <if test="parm.brand!=null and parm.brand!=''">
+            and   a.brandId=#{parm.brand}
+        </if>
+        <if test="parm.type==3  and parm.code!=null and parm.code!=''">
+            and   b.biz_code=#{parm.code}
+        </if>
+        <if test="parm.startTime!=null and parm.startTime!=''">
+            and    date_format(a.createTime,'%Y-%m-%d')>= date_format(#{parm.startTime},'%Y-%m-%d')
+        </if>
+        <if test="parm.endTime!=null and parm.endTime!=''">
+            and    date_format(a.createTime,'%Y-%m-%d')&lt;= date_format(#{parm.endTime},'%Y-%m-%d')
+        </if>
+        GROUP BY a.brandId,a.source,TO_DAYS(a.createTime)
+
+    </select>
+
+    <select id="queryGiftData" parameterType="java.util.Map" resultType="java.util.Map">
+        SELECT
+        ROUND(SUM(A.point90) / 100,2) AS point90,
+        ROUND(count(a.id),2) as count,
+        date_format(a.createTime,'%Y-%m-%d') AS date
+        FROM
+        BASE_90_DETAIL A
+        LEFT JOIN BASE_BRAND B ON B.BRAND_CODE = A.brandId
+        WHERE
+        A.ISDEL = 0
+        AND A.SOURCE in (1,2,4)
+        <if test="type==1 and code!=null and code!=''">
+            and   a.brandId=#{code}
+        </if>
+        <if test="type==2  and code!=null and code!=''">
+            and   b.agent_code=#{code}
+        </if>
+        <if test="type==3  and code!=null and code!=''">
+            and   b.biz_code=#{code}
+        </if>
+        <if test="agent!=null and agent!=''">
+            and   b.agent_code=#{agent}
+        </if>
+        <if test="brand!=null and brand!=''">
+            and   a.brandId=#{brand}
+        </if>
+        <if test="source!=null and source!=''">
+            and   a.source=#{source}
+        </if>
+        <if test="beginTime!=null and beginTime!=''">
+        AND date_format(a.createTime,'%Y-%m-%d') >=date_format(#{beginTime},'%Y-%m-%d')
+        </if>
+        <if test="endTime!=null and endTime!=''">
+        AND date_format(a.createTime,'%Y-%m-%d') &lt;= date_format(#{endTime},'%Y-%m-%d')
+        </if>
+        GROUP BY
+        date_format(a.createTime,'%Y-%m-%d')
+        ORDER BY
+        date_format(a.createTime,'%Y-%m-%d') ASC
+    </select>
+
+    <select id="loadSDInfoCX" resultType="java.util.Map" parameterType="java.util.Map">
+        SELECT IFNULL(ROUND(SUM(a.point90)/100,2),0) as point,
+        IFNULL(ROUND(SUM(case when a.ticketType=0 then a.point90 else 0 end)/100,2),0) as pointJL,
+        IFNULL(ROUND(SUM(case when a.ticketType=1 then a.point90 else 0 end)/100,2),0) as pointLG,
+        IFNULL(ROUND(SUM(case when a.ticketType=2 then a.point90 else 0 end)/100,2),0) as pointTY,
+        IFNULL(ROUND(SUM(a.point90Now)/100,2),0) as point90Now,
+        COUNT(a.id) as count from base_90_detail a
+        LEFT JOIN base_brand b on a.brandId=b.brand_code
+        LEFT JOIN base_user c on a.openId=c.open_id
+        where a.source=2 and a.isdel=1
+        <if test="agent!=null and agent!=''">
+            and   b.agent_code=#{agent}
+        </if>
+        <if test="brand!=null and brand!=''">
+            and   a.brandId=#{brand}
+        </if>
+        <if test="shop!=null and shop!=''">
+            and   a.shopId=#{shop}
+        </if>
+        <if test="start!=null and start!=''">
+            and   date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="end!=null and end!=''">
+            and   date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{end},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="phone!=null and phone!=''">
+            and   c.phone=#{phone}
+        </if>
+    </select>
+
+    <select id="loadSDInfoFF" resultType="java.util.Map" parameterType="java.util.Map">
+        SELECT IFNULL(ROUND(SUM(a.point90)/100,2),0) as point,
+        IFNULL(ROUND(SUM(case when a.ticketType=0 then a.point90 else 0 end)/100,2),0) as pointJL,
+        IFNULL(ROUND(SUM(case when a.ticketType=1 then a.point90 else 0 end)/100,2),0) as pointLG,
+        IFNULL(ROUND(SUM(case when a.ticketType=2 then a.point90 else 0 end)/100,2),0) as pointTY,
+        IFNULL(ROUND(SUM(a.point90Now)/100,2),0) as point90Now,
+        COUNT(a.id) as count from base_90_detail a
+        LEFT JOIN base_brand b on a.brandId=b.brand_code
+        LEFT JOIN base_user c on a.openId=c.open_id
+        where a.source=2 and a.isdel=0
+        <if test="agent!=null and agent!=''">
+            and   b.agent_code=#{agent}
+        </if>
+        <if test="brand!=null and brand!=''">
+            and   a.brandId=#{brand}
+        </if>
+        <if test="shop!=null and shop!=''">
+            and   a.shopId=#{shop}
+        </if>
+        <if test="start!=null and start!=''">
+            and   date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="end!=null and end!=''">
+            and   date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{end},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="phone!=null and phone!=''">
+            and   c.phone=#{phone}
+        </if>
+        <if test="writeOffType!=null and writeOffType!='' and writeOffType!=0">
+            <if test="writeOffType==1">
+                and  (case when (a.point90=a.point90Now) then 2 when (a.point90Now=0) then 1 when (a.point90Now is null) then 2 else 3 end) in (1,3)
+            </if>
+            <if test="writeOffType==2">
+                and  (case when (a.point90=a.point90Now) then 2 when (a.point90Now=0) then 1 when (a.point90Now is null) then 2 else 3 end)=2
+            </if>
+        </if>
+    </select>
+
+
+    <select id="loadZDInfo" resultType="java.util.Map" parameterType="java.util.Map">
+        select sum(z.totalFee) as totalFee,
+                sum(z.cashFee) as cashFee,
+                sum(z.couponFee) as couponFee,
+                sum(z.deals) as deals,
+        sum(point90Now) as point90Now,
+        sum(point90NowJL) as point90NowJL,
+        sum(point90NowLG) as point90NowLG,
+        sum(point90NowTY) as point90NowTY
+        from(
+            SELECT
+                IFNULL(ROUND(SUM(t.order_total)/100,2),0) as totalFee,
+                IFNULL(ROUND(sum(case when t.state!=2 then t.gift_90 else 0 end)/100,2),0) as cashFee,
+                IFNULL(ROUND(sum(ROUND(case when t.state!=2 then t.gift_90 else 0 end *t.commission / 10000,2)),2),0) as couponFee,
+                count(t.code) as deals,
+                IFNULL(ROUND(SUM(d90.point90)/100,2),0) as point90Now,
+                IFNULL(ROUND(SUM(case when d90.ticketType=0 then d90.point90 else 0 end)/100,2),0) as point90NowJL,
+        IFNULL(ROUND(SUM(case when d90.ticketType=1 then d90.point90 else 0 end)/100,2),0) as point90NowLG,
+        IFNULL(ROUND(SUM(case when d90.ticketType=2 then d90.point90 else 0 end)/100,2),0) as point90NowTY
+            FROM
+            order_main_union t
+            LEFT JOIN base_user e ON e.open_id = t.open_id
+            left join t_sys_user u on u.id = t.user_code
+            left join base_brand b on b.brand_code = t.brand_code
+            LEFT JOIN base_agent d on b.agent_code=d.agent_code
+            left join base_shop c on t.shop_code = c.sid
+            left join base_90_detail d90 on d90.sourceId=t.code and d90.isdel=0 and d90.source=1 and d90.inOut=1
+            WHERE t.ISDEL = 0
+            <if test="agent!=null and agent!=''">
+                and   b.agent_code=#{agent}
+            </if>
+            <if test="brand!=null and brand!=''">
+                and t.brand_code=#{brand}
+            </if>
+        <if test="shop!=null and shop!=''">
+            and   c.sid=#{shop}
+        </if>
+            <if test="start!=null and start!=''">
+                and   date_format(t.create_time,'%Y-%m-%d %H:%i:%s')>= date_format(#{start},'%Y-%m-%d %H:%i:%s')
+            </if>
+            <if test="end!=null and end!=''">
+                and   date_format(t.create_time,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{end},'%Y-%m-%d %H:%i:%s')
+            </if>
+            <if test="phone!=null and phone!=''">
+            and  e.phone = #{phone}
+            </if>
+            <if test="tradeType!=null and tradeType!=''">
+            and  t.trade_type = #{tradeType}
+            </if>
+        <if test="writeOffType!=null and writeOffType!='' and writeOffType!=0">
+            <if test="writeOffType==1">
+                and  (case when (d90.point90=d90.point90Now) then 2 when (d90.point90Now=0) then 1 when (d90.point90Now is null) then 2 else 3 end) in (1,3)
+            </if>
+            <if test="writeOffType==2">
+                and  (case when (d90.point90=d90.point90Now) then 2 when (d90.point90Now=0) then 1 when (d90.point90Now is null) then 2 else 3 end)=2
+            </if>
+        </if>
+            union all
+                SELECT IFNULL(ROUND(SUM(e.goodsTotal),2),0) as totalFee,
+                        IFNULL(ROUND(SUM(a.point90),2),0) as cashFee,
+                        0 couponFee,
+                        count(1) as deals,
+                        IFNULL(ROUND(SUM(a.point90)/100,2),0) as point90Now,
+        IFNULL(ROUND(SUM(case when a.ticketType=0 then a.point90 else 0 end)/100,2),0) as point90NowJL,
+        IFNULL(ROUND(SUM(case when a.ticketType=1 then a.point90 else 0 end)/100,2),0) as point90NowLG,
+        IFNULL(ROUND(SUM(case when a.ticketType=2 then a.point90 else 0 end)/100,2),0) as point90NowTY
+                FROM
+                    base_90_detail a
+                LEFT JOIN order_detail b ON a.sourceId = b.id
+                LEFT JOIN base_brand c ON a.brandId = c.brand_code
+                LEFT JOIN base_agent d ON c.agent_code = d.agent_code
+                LEFT JOIN order_main e ON b.orderId = e.id
+                left join base_user f on a.userId = f.id
+                WHERE
+                    b.id IS NOT NULL
+                AND a.source = 1
+            <if test="agent!=null and agent!=''">
+                and   c.agent_code=#{agent}
+            </if>
+            <if test="brand!=null and brand!=''">
+                and a.brandId=#{brand}
+            </if>
+        <if test="shop!=null and shop!=''">
+            and   a.shopId=#{shop}
+        </if>
+            <if test="start!=null and start!=''">
+                and   date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{start},'%Y-%m-%d %H:%i:%s')
+            </if>
+            <if test="end!=null and end!=''">
+                and   date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{end},'%Y-%m-%d %H:%i:%s')
+            </if>
+        <if test="phone!=null and phone!=''">
+            and  f.phone = #{phone}
+        </if>
+        <if test="tradeType!=null and tradeType!=''">
+            and  2 = #{tradeType}
+        </if>
+        <if test="writeOffType!=null and writeOffType!='' and writeOffType!=0">
+            <if test="writeOffType==1">
+                and  (case when (a.point90=a.point90Now) then 2 when (a.point90Now=0) then 1 when (a.point90Now is null) then 2 else 3 end) in (1,3)
+            </if>
+            <if test="writeOffType==2">
+                and  (case when (a.point90=a.point90Now) then 2 when (a.point90Now=0) then 1 when (a.point90Now is null) then 2 else 3 end)=2
+            </if>
+        </if>
+        )as z
+    </select>
+
+
+    <select id="loadSTKInfo" resultType="java.util.Map" parameterType="java.util.Map">
+        SELECT IFNULL(ROUND(SUM(a.point90)/100,2),0) as point,COUNT(a.id) as count,
+        IFNULL(ROUND(SUM(case when a.ticketType=0 then a.point90 else 0 end)/100,2),0) as pointJL,
+        IFNULL(ROUND(SUM(case when a.ticketType=1 then a.point90 else 0 end)/100,2),0) as pointLG,
+        IFNULL(ROUND(SUM(case when a.ticketType=2 then a.point90 else 0 end)/100,2),0) as pointTY
+        from base_90_detail a
+        LEFT JOIN base_brand b on a.brandId=b.brand_code
+        LEFT JOIN base_user c on a.openId=c.open_id
+        LEFT JOIN offline_card_90_detail d on a.sourceId=d.cardCode
+        LEFT JOIN offline_card_90_grant e on d.id=e.detailId
+        where a.source=4 and a.isdel=0
+        <if test="agent!=null and agent!=''">
+            and   bb.agent_code=#{agent}
+        </if>
+        <if test="brand!=null and brand!=''">
+            and   a.brandId=#{brand}
+        </if>
+        <if test="start!=null and start!=''">
+            and   date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="end!=null and end!=''">
+            and   date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{end},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="phone!=null and phone!=''">
+            and   c.phone=#{phone}
+        </if>
+        <if test="type!=null and type!=''">
+            and   e.typeId=#{type}
+        </if>
+            <if test="writeOffType==1">
+                and  (case when (a.point90=a.point90Now) then 2 when (a.point90Now=0) then 1 when (a.point90Now is null) then 2 else 3 end) in (1,3)
+            </if>
+            <if test="writeOffType==2">
+                and  (case when (a.point90=a.point90Now) then 2 when (a.point90Now=0) then 1 when (a.point90Now is null) then 2 else 3 end)=2
+            </if>
+
+    </select>
+
+
+    <!-- 手动发券和实体卡-->
+    <select id="findList"  parameterType="com.framework.model.Params" resultType="com.biz.model.Pmodel.basic.PbaseDetail">
+        SELECT
+        g.cardName,
+        g.cardType,
+        g.cardCode,
+        a.orderTotal,
+        a.orderState,
+        a.tradeType,
+        a.commission,
+        ifnull(e.phone, '暂无') AS userPhone,
+        a.id,
+        a.source,
+        a.sourceMsg,
+        a.type,
+        a.sourceId,
+        a.point90/100 as point90,
+        date_format(
+        a.createTime,
+        '%Y-%m-%d %H:%i:%s'
+        ) AS createTime,
+        date_format(
+        a.cancelTime,
+        '%Y-%m-%d %H:%i:%s'
+        ) AS cancelTime,
+        b. NAME AS brandName,
+        c.agent_name AS agentName,
+        d.business_name AS shopIdName,
+        ifnull(e.person_name, '暂无') AS userName,
+        ifnull(f.personName, '暂无') AS operUserName,
+        a.state as writeOffState,
+        ifnull(a.ticketType,0) as ticketType,
+        (case when (a.point90=a.point90Now) then 2 when (a.point90Now=0) then 1 when (a.point90Now is null) then 2 else 3 end) as writeOffType
+        FROM
+        base_90_detail a
+        LEFT JOIN base_brand b ON b.brand_code = a.brandId
+        LEFT JOIN base_agent c ON c.agent_code = b.agent_code
+        LEFT JOIN base_shop d ON d.sid = a.shopId
+        LEFT JOIN base_user e ON e.open_id = a.openId
+        LEFT JOIN t_sys_user f ON f.id = a.userCode
+        LEFT JOIN (
+        SELECT
+        g.cardNumber,
+        j. NAME AS cardName,
+        i. NAME AS cardType,
+        i.id as cardTypeId,
+        g.cardCode AS cardCode
+        FROM
+        offline_card_90_detail g
+        inner JOIN offline_card_90_grant h ON h.detailId = g.id
+        inner JOIN offline_card_90_type i ON i.id = h.typeId
+        inner JOIN offline_card_90 j ON j.id = g.mainId
+        ) g on g.cardCode=a.sourceId
+        WHERE
+        1=1
+        <if test="agent!=null and agent!='' and type!=4">
+            and   c.agent_code=#{agent}
+        </if>
+        <if test="brand!=null and brand!='' and type!=4">
+            and a.brandId=#{brand}
+        </if>
+        <if test="shop!=null and brand!='' and type!=4">
+            and a.shopId=#{shop}
+        </if>
+        <if test="type!=null and type!=''">
+            and   a.source=#{type}
+        </if>
+        <if test="start!=null and start!=''">
+            and    date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="end!=null and end!=''">
+            and  date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{end},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="phone!=null and phone!=''">
+            and  e.phone = #{parm.phone}
+        </if>
+        <if test="tradeType!=null and tradeType!=''">
+            and  g.cardTypeId = #{parm.cardType}
+        </if>
+        <if test="writeOffType!=null and writeOffType!='' and writeOffType!=0">
+            <if test="writeOffType==1">
+                and  (case when (a.point90=a.point90Now) then 2 when (a.point90Now=0) then 1 when (a.point90Now is null) then 2 else 3 end) in (1,3)
+            </if>
+            <if test="writeOffType==2">
+                and  (case when (a.point90=a.point90Now) then 2 when (a.point90Now=0) then 1 when (a.point90Now is null) then 2 else 3 end)=2
+            </if>
+        </if>
+        group by a.id
+        order by a.createTime desc
+    </select>
+
+    <select id="findAutoList"  parameterType="com.framework.model.Params" resultType="com.biz.model.Pmodel.api.OrderMainUnion">
+        select z.* from(
+        SELECT
+        d.agent_name,
+        b. NAME AS brand_name,
+        c.business_name,
+        t. CODE,
+        t.order_total,
+        t.gift_90,
+        t.commission,
+        ROUND(
+        t.gift_90 * t.commission / 10000,
+        2
+        ) card_fee,
+        t.state,
+        ifnull(u.personName,'无') AS person_name,
+        t.trade_type,
+        ifnull(e.person_name, '暂无') AS userName,
+        ifnull(e.phone, '暂无') AS userPhone,
+        t.create_time,
+        IFNULL(d90.state,-1) as writeOffState,
+        ifnull(d90.ticketType,0) as ticketType,
+        (case when (d90.point90=d90.point90Now) then 2 when (d90.point90Now=0) then 1  when (d90.point90Now is null) then 2 else 3 end) as writeOffType
+        FROM
+        order_main_union t
+        LEFT JOIN base_user e ON e.open_id = t.open_id
+        left join t_sys_user u on u.id = t.user_code
+        left join base_brand b on b.brand_code = t.brand_code
+        LEFT JOIN base_agent d on b.agent_code=d.agent_code
+        left join base_shop c on t.shop_code = c.sid
+        left join base_90_detail d90 on d90.sourceId=t.code and d90.isdel=0 and d90.source=1 and d90.inOut=1
+        WHERE t.ISDEL = 0
+        <if test="agent!=null and agent!='' and type!=4">
+            and   b.agent_code=#{agent}
+        </if>
+        <if test="brand!=null and brand!='' and type!=4">
+            and t.brand_code=#{brand}
+        </if>
+        <if test="shop!=null and shop!='' and type!=4">
+            and   c.sid=#{shop}
+        </if>
+        <if test="start!=null and start!=''">
+            and    date_format(t.CREATE_TIME,'%Y-%m-%d %H:%i:%s')>= date_format(#{start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="end!=null and end!=''">
+            and  date_format(t.CREATE_TIME,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{end},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="phone!=null and phone!=''">
+            and  e.phone = #{phone}
+        </if>
+        <if test="tradeType!=null and tradeType!=''">
+            and  t.trade_type = #{tradeType}
+        </if>
+        union all
+        SELECT
+        d.agent_name,
+        c. NAME,
+        '无' AS business_name,
+        e. CODE,
+        e.allTotal*100,
+        a.point90 as  gift_90,
+        0 AS commission,
+        0 card_fee,
+        1 as state,
+        '无' as person_name,
+        'MICROPAY' as trade_type,
+        ifnull(f.person_name, '暂无') AS userName,
+        ifnull(f.phone, '暂无') AS userPhone,
+        a.createTime as create_time,
+        a.state as writeOffState,
+        ifnull(a.ticketType,0) as ticketType,
+        (case when (a.point90=a.point90Now) then 2 when (a.point90Now=0) then 1 when (a.point90Now is null) then 2 else 3 end) as writeOffType
+        FROM
+        base_90_detail a
+        LEFT JOIN order_detail b ON a.sourceId = b.id
+        LEFT JOIN base_brand c ON a.brandId = c.brand_code
+        LEFT JOIN base_agent d ON c.agent_code = d.agent_code
+        LEFT JOIN order_main e ON b.orderId = e.id
+        left join base_user f on a.userId = f.id
+        WHERE
+        b.id IS NOT NULL
+        AND a.source = 1
+        <if test="agent!=null and agent!='' and type!=4">
+            and   c.agent_code=#{agent}
+        </if>
+        <if test="brand!=null and brand!='' and type!=4">
+            and a.brandId=#{brand}
+        </if>
+        <if test="shop!=null and shop!='' and type!=4">
+            and   a.shopId=#{shop}
+        </if>
+        <if test="start!=null and start!=''">
+            and    date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="end!=null and end!=''">
+            and  date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{end},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="phone!=null and phone!=''">
+            and  f.phone = #{phone}
+        </if>
+        <if test="tradeType!=null and tradeType!=''">
+            and  2 = #{tradeType}
+        </if>
+        )as z
+        where 1=1
+        <if test="writeOffType!=null and writeOffType!='' and writeOffType!=0">
+            <if test="writeOffType==1">
+                and writeOffType in(1,3)
+            </if>
+            <if test="writeOffType==2">
+                and  writeOffType=2
+            </if>
+        </if>
+        order by z.CREATE_TIME desc
+    </select>
+
+
+
+    <select id="findCoinPage"  parameterType="com.framework.model.Params" resultType="com.biz.model.Pmodel.basic.PcoinStatistics">
+        SELECT
+        a.person_name AS personName,
+        a.phone,
+        a.id as userId,
+        IFNULL(SUM(CASE when(c.source=1 or (c.source=6 and c.type=0)) then c.amount else 0 end),0) as chargeAmount,
+        IFNULL(SUM(CASE when(c.source=3 or (c.source=6 and c.type=1)) then c.amount else 0 end),0) as giveAmount,
+        IFNULL(SUM(CASE when(c.source=2) then c.amount else 0 end),0) as orderAmount,
+        IFNULL(SUM(CASE when(c.source=2) then 1 else 0 end),0) as orderCount,
+        IFNULL(IFNULL(b.chargeAmount,0)+IFNULL(b.giveAmount,0),0) as coinAll
+        FROM
+        base_user a
+        INNER JOIN t_user_coin b ON a.id = b.userId
+        LEFT JOIN balance_sheet c ON c.userId = a.id
+        <if test="parm.start!=null and parm.start!=''">
+            and    date_format(c.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{parm.start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="parm.end!=null and parm.end!=''">
+            and  date_format(c.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{parm.end},'%Y-%m-%d %H:%i:%s')
+        </if>
+        WHERE
+        a.isdel = 0
+        <if test="parm.customer!=null and parm.customer!=''">
+            and a.phone like concat('%',#{parm.customer},'%')
+        </if>
+
+        GROUP BY
+        a.id
+        order by c.createTime desc
+        limit ${page},${rows}
+    </select>
+
+    <select id="countCoin"  parameterType="com.framework.model.Params" resultType="com.biz.model.Pmodel.basic.PcoinStatistics">
+        SELECT
+        a.person_name AS personName
+        FROM
+        base_user a
+        INNER JOIN t_user_coin b ON a.id = b.userId
+        LEFT JOIN balance_sheet c ON c.userId = a.id
+        <if test="parm.start!=null and parm.start!=''">
+            and    date_format(c.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{parm.start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="parm.end!=null and parm.end!=''">
+            and  date_format(c.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{parm.end},'%Y-%m-%d %H:%i:%s')
+        </if>
+        WHERE
+        a.isdel = 0
+        <if test="parm.customer!=null and parm.customer!=''">
+            and a.phone like concat('%',#{parm.customer},'%')
+        </if>
+
+        GROUP BY
+        a.id
+
+    </select>
+    
+    <select id="loadJLBInfo" resultType="java.util.Map" parameterType="java.util.Map">
+        SELECT
+        SUM(IFNULL(CASE when (a.source=1 or (a.source=6 and a.type=0)) then a.amount else 0 end,0)) as rechargeAll,
+        SUM(IFNULL(CASE when (a.source=3 or (a.source=6 and a.type=1)) then a.amount else 0 end,0)) as giveAll,
+        SUM(IFNULL(CASE when (a.source=2 ) then a.amount else 0 end,0)) as orderAll,
+        SUM(IFNULL(CASE when (a.source=2 ) then 1 else 0 end,0)) as orderCount,
+        b.count as rechargeCount
+        FROM
+        balance_sheet a
+        LEFT JOIN base_user c on c.id=a.userId
+        LEFT JOIN (select count(a.id) as count from (
+        select a.id FROM
+        balance_sheet a
+        LEFT JOIN base_user c on c.id=a.userId
+        where (a.source=1 or (a.source=6 and a.type=0))
+        <if test="start!=null and start!=''">
+            and    date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="end!=null and end!=''">
+            and  date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{end},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="customer!=null and customer!=''">
+            and c.phone like concat('%',#{customer},'%')
+        </if>
+        GROUP BY a.userId
+        )a) b on 1=1
+        where
+        1=1
+        <if test="start!=null and start!=''">
+            and    date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="end!=null and end!=''">
+            and  date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{end},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="customer!=null and customer!=''">
+            and c.phone like concat('%',#{customer},'%')
+        </if>
+
+    </select>
+
+    <!--查询交易记录-->
+    <select id="getBase90Detail" resultType="com.biz.model.Pmodel.basic.PbaseDetail" parameterType="java.util.Map">
+        SELECT * from base_90_detail where id=#{id}
+    </select>
+    <!--查询用户当前券和贝-->
+    <select id="getUserBalanceCoin" resultType="java.util.Map" parameterType="java.util.Map">
+        SELECT u.id,u.open_id,IFNULL(u.balance_90,0) as balance_90 ,IFNULL(c.giveAmount,0)as giveAmount,IFNULL(u.balance_shopping_90,0) as balance_shopping_90 FROM base_user u
+        left join t_user_coin c on u.id=c.userId
+        where u.open_id=#{open_id} and u.isdel=0
+    </select>
+    <!--查询当前记录赠送的贝-->
+    <select id="getUserBase90DetailCoin" resultType="java.util.Map" parameterType="java.util.Map">
+        SELECT id,amount FROM balance_sheet where orderNum=#{orderNum} and source=3
+    </select>
+    <!--撤销，修改订单状态-->
+    <select id="updateBase90Detail"  parameterType="java.util.Map">
+        update base_90_detail set isdel=1,cancelTime=NOW() where id=#{id}
+    </select>
+
+    <select id="getOfflineCardTypeForSelect" resultType="java.util.HashMap">
+        select id,name from offline_card_90_type where isdel=0
+    </select>
+
+
+
+
+    <select id="getPoint90DataByDate" parameterType="String" resultType="com.biz.model.Pmodel.basic.PyestodayReport">
+        SELECT
+        IFNULL(SUM(case when a.source in (0,1,2,4,6,8) and a.isdel=0 then a.point90/100 else 0 end),0) as point90All,
+        IFNULL(SUM(case when (a.source in (0,1,2,4,6,8))and (b.is_90=0)and(a.type!=2) and a.isdel=0 then a.point90/100 else 0 end),0) as point90Union,
+        IFNULL(SUM(case when (a.source in (0,1,2,4,6,8))and(a.type=2) and a.isdel=0 then a.point90/100 else 0 end),0) as point90Online,
+        IFNULL( SUM(case when (a.source in (0,1,2,4,6,8))and (b.is_90=1 or a.brandId is null)and(a.type!=2) and a.isdel=0 then a.point90/100 else 0 end),0) as point90Offline,
+        IFNULL(SUM(case when a.source in (0,1,2,4,6,8) and a.isdel=0 then 1 else 0 end),0) as point90Count,
+        IFNULL(SUM(case when (a.source in (0,1,2,4,6,8))and (b.is_90=0)and(a.type!=2) and a.isdel=0 then 1 else 0 end),0) as point90UnionCount,
+        IFNULL(SUM(case when (a.source in (0,1,2,4,6,8))and(a.type=2) and a.isdel=0 then 1 else 0 end),0) as point90OnlineCount,
+        IFNULL(SUM(case when (a.source in (0,1,2,4,6,8))and (b.is_90=1 or a.brandId is null)and(a.type!=2) and a.isdel=0 then 1 else 0 end),0) as point90OfflineCount,
+
+        IFNULL(SUM(case when a.source=3  then a.point90/100 else 0 end),0) as voucher90All,
+        IFNULL(SUM(case when (a.source=3)and(a.type=2) then a.point90/100 else 0 end),0) as voucher90Online,
+        IFNULL(SUM(case when (a.source=3)and(a.type!=2) then a.point90/100 else 0 end),0) as voucher90Offline,
+        IFNULL(SUM(case when a.source=3 then 1 else 0 end),0) as voucher90Count,
+        IFNULL(SUM(case when (a.source=3)and(a.type=2) then 1 else 0 end),0) as voucher90OnlineCount,
+        IFNULL( SUM(case when (a.source=3)and(a.type!=2) then 1 else 0 end),0) as voucher90OfflineCount
+        FROM base_90_detail a
+        LEFT JOIN base_brand b on a.brandId=b.brand_code where date_format(a.createTime,'%Y-%m-%d')=date_format(#{dateString},'%Y-%m-%d')
+    </select>
+
+    <select id="getServiceDataByDate" parameterType="String" resultType="com.biz.model.Pmodel.basic.PyestodayReport">
+        select IFNULL(sum(servicePayTotal),0) as servicePay ,  IFNULL(sum(coinPayTotal),0) as coinPay from (
+        select IFNULL(a.servicePayTotal,0) as servicePayTotal,IFNULL(a.coinPayTotal,0) as coinPayTotal from order_main a
+        LEFT JOIN order_detail b on a.id=b.orderId
+        where (b.goodsType=0 or b.goodsType is null) and a.isdel=0 and a.state=1 and a.isClosed=0
+        and DATE_FORMAT(a.createTime,'%Y-%m-%d')=DATE_FORMAT(#{dateString},'%Y-%m-%d')
+        GROUP BY a.id
+        UNION ALL
+        select IFNULL(sum(IFNULL(cash_total,0)/100),0) as servicePayTotal,IFNULL(SUM(IFNULL(pay_coin,0)/100),0) as coinPayTotal from order_main_90
+        where isdel=0 and state=1
+        and DATE_FORMAT(create_time,'%Y-%m-%d')=DATE_FORMAT(#{dateString},'%Y-%m-%d')
+        )a
+    </select>
+
+
+    <select id="getServiceCoinByDate" parameterType="String" resultType="com.biz.model.Pmodel.basic.PyestodayReport">
+        select
+        ifnull(SUM(case when (state=1 and type=0)  then amount else 0 end),0)as coin90Recharge,
+        ifnull(SUM(case when (state=1 and type=1)  then amount else 0 end),0) as coin90Give,
+        ifnull(SUM(case when (state=1 and type=0)  then 1 else 0 end),0) as coin90RechargeCount,
+        ifnull(SUM(case when (state=1 and type=1)  then 1 else 0 end),0) as coin90GiveCount
+        from balance_sheet
+        where date_format(createTime,'%Y-%m-%d')=date_format(#{dateString},'%Y-%m-%d')
+    </select>
+    <select id="getUserInfoByDate" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.basic.PyestodayReport">
+        select
+        IFNULL(sum((case  when state=1 then 1 else 0 end)),0) as userAll,
+        IFNULL(sum((case  when (state=1 and DATE_FORMAT(create_time,'%Y-%m-%d')=DATE_FORMAT(#{dateStringYestoday},'%Y-%m-%d')) then 1 else 0 end)),0) as userYestoday,
+        IFNULL(sum((case  when (state=1 and DATE_FORMAT(create_time,'%Y-%m-%d')=DATE_FORMAT(#{dateString},'%Y-%m-%d')) then 1 else 0 end)),0) as userToday,
+        IFNULL(sum((case  when state=0 then 1 else 0 end)),0) as userCancal
+        from base_user where isdel=0
+
+    </select>
+    <select id="getBrandShopInfoByDate" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.basic.PyestodayReport">
+        select
+        count(a.brand_code) as brandAll,
+        ifnull(sum(case when DATE_FORMAT(a.create_time,'%Y-%m-%d')=DATE_FORMAT(#{dateString},'%Y-%m-%d') then 1 else 0 end),0) as brandNew,
+        ifnull(sum(case when b.create_time is not null or c.create_time is not null then 1 else 0 end),0) as brandActive,
+        d.shopAll,
+        d.shopNew,
+        d.shopActive
+        from base_brand a
+        LEFT JOIN
+        (SELECT max(create_time) as create_time,brand_code from order_main_union where isdel=0 and DATE_FORMAT(create_time,'%Y-%m-%d')=DATE_FORMAT(#{dateString},'%Y-%m-%d') GROUP BY brand_code) b on b.brand_code=a.brand_code
+        LEFT JOIN(SELECT max(create_time) as create_time,brand_code from rg_gift where isdel=0 and DATE_FORMAT(create_time,'%Y-%m-%d')=DATE_FORMAT(#{dateString},'%Y-%m-%d') GROUP BY brand_code) c on c.brand_code=a.brand_code
+        LEFT JOIN
+        (
+        select
+        count(a.sid) as shopAll,
+        ifnull(sum(case when DATE_FORMAT(a.create_time,'%Y-%m-%d')=DATE_FORMAT(#{dateString},'%Y-%m-%d') then 1 else 0 end),0) as shopNew,
+        ifnull(sum(case when b.create_time is not null or c.create_time is not null then 1 else 0 end),0) as shopActive
+        from base_shop a
+        LEFT JOIN
+        (SELECT max(create_time) as create_time,shop_code from order_main_union where isdel=0 and DATE_FORMAT(create_time,'%Y-%m-%d')=DATE_FORMAT(#{dateString},'%Y-%m-%d') GROUP BY shop_code) b on b.shop_code=a.sid
+        LEFT JOIN(SELECT max(create_time) as create_time,shop_code from rg_gift where isdel=0 and DATE_FORMAT(create_time,'%Y-%m-%d')=DATE_FORMAT(#{dateString},'%Y-%m-%d') GROUP BY shop_code) c on c.shop_code=a.sid
+        where a.isdel=0
+        )d on 1=1
+        where a.isdel=0
+
+
+    </select>
+
+    <select id="getStaticsAllInfoByDate" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.basic.PyestodayReport">
+        select
+        IFNULL(sum(case when a.state=1 then a.amount else 0 end),0) as coin90Now,
+        IFNULL(sum(case when a.state=2 then a.amount else 0 end),0) as coin90Used,
+        IFNULL(sum(case when a.state=1 and a.type=0 then a.amount else 0 end),0) as coin90RechargeNow,
+        IFNULL(sum(case when a.state=2 and a.type=0 then a.amount else 0 end),0) as coin90RechargeUsed,
+        b.*
+        from balance_sheet  a
+        LEFT JOIN (
+        select
+        IFNULL(sum(case when source in (0,1,2,4,6,8) and isdel=0 then point90/100 else 0 end),0) as point90Now,
+        IFNULL(sum(case when source =3 and isdel=0 and type=2 then point90/100 else 0 end),0) as point90AllOnline,
+        IFNULL(sum(case when source =3 and isdel=0 and type!=2 then point90/100 else 0 end),0) as point90AllOffline
+        from
+        base_90_detail where isdel=0
+        ) b on 1=1
+
+    </select>
+
+    <select id="getUserActiveInfoByDate" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.basic.PyestodayReport">
+        select
+        IFNULL(sum(case when b.openId is not null then 1 else 0 end),0) as userActiveVoucher,
+        IFNULL(sum(case when c.userId is not null and b.openId is null then 1 else 0 end),0) as userActiveRecharge,
+        IFNULL(sum(case when d.buyUserId is not null and b.openId is null and c.userId is null then 1 else 0 end),0) as userActiveMall
+        from
+        base_user a
+        LEFT JOIN
+        (select openId from base_90_detail where source=3 and DATE_FORMAT(createTime,'%Y-%m-%d')=DATE_FORMAT(#{dateString},'%Y-%m-%d')) b on a.open_id=b.openId
+        LEFT JOIN
+        (select userId from balance_sheet where state=1 and DATE_FORMAT(createTime,'%Y-%m-%d')=DATE_FORMAT(#{dateString},'%Y-%m-%d')) c on a.id=c.userId
+        LEFT JOIN
+        (select buyUserId from order_main where DATE_FORMAT(createTime,'%Y-%m-%d')=DATE_FORMAT(#{dateString},'%Y-%m-%d')) d on d.buyUserId=a.id
+        where a.isdel=0
+    </select>
+
+
+    <!--首次关注加积分  商户发券-->
+    <select id="findFirstConcernPage" parameterType="com.framework.model.Params" resultType="com.biz.model.Pmodel.basic.PbaseDetail">
+        SELECT
+        a.orderTotal,
+        a.orderState,
+        a.tradeType,
+        a.commission,
+        ifnull(e.phone, '暂无') AS userPhone,
+        a.id,
+        a.source,
+        a.sourceMsg,
+        a.type,
+        a.sourceId,
+        a.point90,
+        date_format(a.createTime,'%Y-%m-%d %H:%i:%s') AS createTime,
+        date_format(a.cancelTime,'%Y-%m-%d %H:%i:%s') AS cancelTime,
+        b. NAME AS brandName,
+        c.agent_name AS agentName,
+        d.business_name AS shopIdName,
+        ifnull(e.person_name, '暂无') AS userName,
+        ifnull(f.personName, '暂无') AS operUserName,
+        a.isdel
+        FROM
+        base_90_detail a
+        LEFT JOIN base_brand b ON b.brand_code = a.brandId
+        LEFT JOIN base_agent c ON c.agent_code = b.agent_code
+        LEFT JOIN base_shop d ON d.sid = a.shopId
+        LEFT JOIN base_user e ON e.open_id = a.openId
+        LEFT JOIN t_sys_user f ON f.id = a.userCode
+
+        <if test="parm.agent!=null and parm.agent!=''">
+            and   c.agent_code=#{parm.agent}
+        </if>
+        <if test="parm.brand!=null and parm.brand!=''">
+            and a.brandId=#{parm.brand}
+        </if>
+        <if test="parm.shop!=null and parm.shop!=''">
+            and   d.sid=#{parm.shop}
+        </if>
+        <if test="parm.start!=null and parm.start!=''">
+            and    date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{parm.start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="parm.end!=null and parm.end!=''">
+            and  date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{parm.end},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="parm.phone!=null and parm.phone!=''">
+            and  e.phone = #{parm.phone}
+        </if>
+        where a.source = 6 and a.inOut=1
+        order by a.createTime desc
+        limit ${page},${rows}
+    </select>
+
+    <select id="countFirstConcern" parameterType="com.framework.model.Params" resultType="java.lang.Integer">
+        SELECT
+        count(a.id)
+        FROM
+        base_90_detail a
+        LEFT JOIN base_brand b ON b.brand_code = a.brandId
+        LEFT JOIN base_agent c ON c.agent_code = b.agent_code
+        LEFT JOIN base_shop d ON d.sid = a.shopId
+        LEFT JOIN base_user e ON e.open_id = a.openId
+        LEFT JOIN t_sys_user f ON f.id = a.userCode
+
+        <if test="parm.agent!=null and parm.agent!=''">
+            and   c.agent_code=#{parm.agent}
+        </if>
+        <if test="parm.brand!=null and parm.brand!=''">
+            and a.brandId=#{parm.brand}
+        </if>
+        <if test="parm.shop!=null and parm.shop!=''">
+            and   d.sid=#{parm.shop}
+        </if>
+        <if test="parm.start!=null and parm.start!=''">
+            and    date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{parm.start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="parm.end!=null and parm.end!=''">
+            and  date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{parm.end},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="parm.phone!=null and parm.phone!=''">
+            and  e.phone = #{parm.phone}
+        </if>
+        where a.source = 6 and a.inOut=1
+    </select>
+
+
+    <!--充值90贝送券流水-->
+    <select id="findCharge90CoinPage" parameterType="com.framework.model.Params" resultType="com.biz.model.Pmodel.basic.PbaseDetail">
+        SELECT
+        a.orderTotal,
+        a.orderState,
+        a.tradeType,
+        a.commission,
+        ifnull(e.phone, '暂无') AS userPhone,
+        a.id,
+        a.source,
+        a.sourceMsg,
+        a.type,
+        a.sourceId,
+        a.point90,
+        date_format(a.createTime,'%Y-%m-%d %H:%i:%s') AS createTime,
+        date_format(a.cancelTime,'%Y-%m-%d %H:%i:%s') AS cancelTime,
+        b. NAME AS brandName,
+        c.agent_name AS agentName,
+        d.business_name AS shopIdName,
+        ifnull(e.person_name, '暂无') AS userName,
+        ifnull(f.personName, '暂无') AS operUserName,
+        a.isdel
+        FROM
+        base_90_detail a
+        LEFT JOIN base_brand b ON b.brand_code = a.brandId
+        LEFT JOIN base_agent c ON c.agent_code = b.agent_code
+        LEFT JOIN base_shop d ON d.sid = a.shopId
+        LEFT JOIN base_user e ON e.open_id = a.openId
+        LEFT JOIN t_sys_user f ON f.id = a.userCode
+        LEFT JOIN balance_sheet s ON s.orderNum = a.sourceId
+        <if test="parm.agent!=null and parm.agent!=''">
+            and   c.agent_code=#{parm.agent}
+        </if>
+        <if test="parm.brand!=null and parm.brand!=''">
+            and a.brandId=#{parm.brand}
+        </if>
+        <if test="parm.shop!=null and parm.shop!=''">
+            and   d.sid=#{parm.shop}
+        </if>
+        <if test="parm.start!=null and parm.start!=''">
+            and    date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{parm.start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="parm.end!=null and parm.end!=''">
+            and  date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{parm.end},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="parm.phone!=null and parm.phone!=''">
+            and  e.phone = #{parm.phone}
+        </if>
+        where a.source = 0 and a.inOut=1
+        order by a.createTime desc
+        limit ${page},${rows}
+    </select>
+    <select id="countCharge90Coin" parameterType="com.framework.model.Params" resultType="java.lang.Integer">
+        SELECT
+        count(a.id)
+        FROM
+        base_90_detail a
+        LEFT JOIN base_brand b ON b.brand_code = a.brandId
+        LEFT JOIN base_agent c ON c.agent_code = b.agent_code
+        LEFT JOIN base_shop d ON d.sid = a.shopId
+        LEFT JOIN base_user e ON e.open_id = a.openId
+        LEFT JOIN t_sys_user f ON f.id = a.userCode
+        LEFT JOIN balance_sheet s ON s.orderNum = a.sourceId
+        <if test="parm.agent!=null and parm.agent!=''">
+            and   c.agent_code=#{parm.agent}
+        </if>
+        <if test="parm.brand!=null and parm.brand!=''">
+            and a.brandId=#{parm.brand}
+        </if>
+        <if test="parm.shop!=null and parm.shop!=''">
+            and   d.sid=#{parm.shop}
+        </if>
+        <if test="parm.start!=null and parm.start!=''">
+            and    date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{parm.start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="parm.end!=null and parm.end!=''">
+            and  date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{parm.end},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="parm.phone!=null and parm.phone!=''">
+            and  e.phone = #{parm.phone}
+        </if>
+        where a.source = 0 and a.inOut=1
+    </select>
+
+    <!--退款送券流水-->
+    <select id="findRefundCouponsPage" parameterType="com.framework.model.Params" resultType="com.biz.model.Pmodel.basic.PbaseDetail">
+        SELECT
+        a.orderTotal,
+        a.orderState,
+        a.tradeType,
+        a.commission,
+        ifnull(e.phone, '暂无') AS userPhone,
+        a.id,
+        a.source,
+        a.sourceMsg,
+        a.type,
+        a.sourceId,
+        a.point90,
+        date_format(a.createTime,'%Y-%m-%d %H:%i:%s') AS createTime,
+        date_format(a.cancelTime,'%Y-%m-%d %H:%i:%s') AS cancelTime,
+        b. NAME AS brandName,
+        c.agent_name AS agentName,
+        d.business_name AS shopIdName,
+        ifnull(e.person_name, '暂无') AS userName,
+        ifnull(f.personName, '暂无') AS operUserName,
+        a.isdel,
+        g.id as orderId,ifnull(g.Money,'0')as Money,ifnull(g.Coupons_Money,'0')as couponsMoney,g.state
+        FROM
+        base_90_detail a
+        LEFT JOIN base_brand b ON b.brand_code = a.brandId
+        LEFT JOIN base_agent c ON c.agent_code = b.agent_code
+        LEFT JOIN base_shop d ON d.sid = a.shopId
+        LEFT JOIN base_user e ON e.open_id = a.openId
+        LEFT JOIN t_sys_user f ON f.id = a.userCode
+        LEFT JOIN(
+        SELECT
+        o.code as source_id,
+        o.code as id,
+        o.cash_total as Money,
+        o.tickets_total as Coupons_Money,
+        o.open_id as openId,
+        o.state as state
+        FROM order_main_90 o
+        UNION ALL
+        SELECT
+        u.code as source_id,
+        u. CODE AS id,
+        u.order_total AS Money,
+        u.card_total AS Coupons_Money,
+        u.open_id as openId,
+        u.state as state
+        FROM order_main_union u
+        UNION ALL
+        SELECT
+        d.id as source_id,
+        m. CODE AS id,
+        m.allTotal AS Money,
+        m.payCoupon AS Coupons_Money,
+        u.open_id as openId,
+        m.state as state
+        FROM order_detail d
+        LEFT JOIN  order_main m on d.orderId = m.id
+        left JOIN base_user u on u.id=m.buyUserId
+        )g on g.openId=a.openId and a.sourceId=g.source_id
+        WHERE a.source = 5 and a.inOut=1
+        <if test="parm.agent!=null and parm.agent!=''">
+            and   c.agent_code=#{parm.agent}
+        </if>
+        <if test="parm.brand!=null and parm.brand!=''">
+            and a.brandId=#{parm.brand}
+        </if>
+        <if test="parm.shop!=null and parm.shop!=''">
+            and   d.sid=#{parm.shop}
+        </if>
+        <if test="parm.start!=null and parm.start!=''">
+            and    date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{parm.start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="parm.end!=null and parm.end!=''">
+            and  date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{parm.end},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="parm.phone!=null and parm.phone!=''">
+            and  e.phone = #{parm.phone}
+        </if>
+        order by a.createTime desc
+        limit ${page},${rows}
+    </select>
+    <select id="countRefundCoupons" parameterType="com.framework.model.Params" resultType="java.lang.Integer">
+        SELECT
+        count(a.id)
+        FROM
+        base_90_detail a
+        LEFT JOIN base_brand b ON b.brand_code = a.brandId
+        LEFT JOIN base_agent c ON c.agent_code = b.agent_code
+        LEFT JOIN base_shop d ON d.sid = a.shopId
+        LEFT JOIN base_user e ON e.open_id = a.openId
+        LEFT JOIN t_sys_user f ON f.id = a.userCode
+        LEFT JOIN(
+        SELECT
+        o.code as source_id,
+        o.code as id,
+        o.cash_total as Money,
+        o.tickets_total as Coupons_Money,
+        o.open_id as openId,
+        o.state as state
+        FROM order_main_90 o
+        UNION ALL
+        SELECT
+        u.code as source_id,
+        u. CODE AS id,
+        u.order_total AS Money,
+        u.card_total AS Coupons_Money,
+        u.open_id as openId,
+        u.state as state
+        FROM order_main_union u
+        UNION ALL
+        SELECT
+        d.id as source_id,
+        m. CODE AS id,
+        m.allTotal AS Money,
+        m.payCoupon AS Coupons_Money,
+        m.openId as openId,
+        m.state as state
+        FROM order_main m
+        LEFT JOIN order_detail d on d.orderId = m.id
+        )g on g.openId=a.openId and a.sourceId=g.source_id
+        WHERE a.source = 5 and a.inOut=1
+
+        <if test="parm.agent!=null and parm.agent!=''">
+            and   c.agent_code=#{parm.agent}
+        </if>
+        <if test="parm.brand!=null and parm.brand!=''">
+            and a.brandId=#{parm.brand}
+        </if>
+        <if test="parm.shop!=null and parm.shop!=''">
+            and   d.sid=#{parm.shop}
+        </if>
+        <if test="parm.start!=null and parm.start!=''">
+            and    date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{parm.start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="parm.end!=null and parm.end!=''">
+            and  date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{parm.end},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="parm.phone!=null and parm.phone!=''">
+            and  e.phone = #{parm.phone}
+        </if>
+    </select>
+
+    <select id="loadFCInfo" resultType="java.util.Map" parameterType="java.util.Map">
+        SELECT IFNULL(ROUND(SUM(a.orderTotal),2),0) as totalFee,
+        IFNULL(ROUND(SUM(a.point90),2),0) as cashFee,
+        0 couponFee,
+        count(1) as deals
+        FROM
+        base_90_detail a
+        LEFT JOIN base_brand c ON a.brandId = c.brand_code
+        LEFT JOIN base_agent d ON c.agent_code = d.agent_code
+        left join base_user f on a.userId = f.id
+        WHERE a.source = 6 and a.inOut=1
+        <if test="agent!=null and agent!=''">
+            and   c.agent_code=#{agent}
+        </if>
+        <if test="brand!=null and brand!=''">
+            and a.brandId=#{brand}
+        </if>
+        <if test="shop!=null and shop!=''">
+            and   a.shopId=#{shop}
+        </if>
+        <if test="start!=null and start!=''">
+            and   date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="end!=null and end!=''">
+            and   date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{end},'%Y-%m-%d %H:%i:%s')
+        </if>
+    </select>
+
+    <select id="loadCCInfo" resultType="java.util.Map" parameterType="java.util.Map">
+        SELECT IFNULL(ROUND(SUM(b.amount),2),0) as totalFee,
+        IFNULL(ROUND(SUM(a.point90),2),0) as cashFee,
+        count(1) as deals
+        FROM
+        base_90_detail a
+        LEFT JOIN balance_sheet b ON a.sourceId = b.orderNum
+        LEFT JOIN base_brand c ON a.brandId = c.brand_code
+        LEFT JOIN base_agent d ON c.agent_code = d.agent_code
+        left join base_user f on a.userId = f.id
+        WHERE
+        b.orderNum IS NOT NULL
+        AND a.source = 0 and a.inOut=1
+        <if test="agent!=null and agent!=''">
+            and   c.agent_code=#{agent}
+        </if>
+        <if test="brand!=null and brand!=''">
+            and a.brandId=#{brand}
+        </if>
+        <if test="shop!=null and shop!=''">
+            and   a.shopId=#{shop}
+        </if>
+        <if test="start!=null and start!=''">
+            and   date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="end!=null and end!=''">
+            and   date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{end},'%Y-%m-%d %H:%i:%s')
+        </if>
+    </select>
+
+    <select id="loadRCInfo" resultType="java.util.Map" parameterType="java.util.Map">
+        SELECT
+        IFNULL(ROUND(SUM(g.Coupons_Money),2),0) as Coupons_Money
+        FROM
+        base_90_detail a
+        LEFT JOIN base_brand b ON b.brand_code = a.brandId
+        LEFT JOIN base_agent c ON c.agent_code = b.agent_code
+        LEFT JOIN base_shop d ON d.sid = a.shopId
+        LEFT JOIN base_user e ON e.open_id = a.openId
+        LEFT JOIN t_sys_user f ON f.id = a.userCode
+        LEFT JOIN(
+        SELECT
+        o.code as source_id,
+        o.code as id,
+        o.cash_total as Money,
+        o.tickets_total as Coupons_Money,
+        o.open_id as openId,
+        o.state as state
+        FROM order_main_90 o
+        UNION ALL
+        SELECT
+        u.code as source_id,
+        u. CODE AS id,
+        u.order_total AS Money,
+        u.card_total AS Coupons_Money,
+        u.open_id as openId,
+        u.state as state
+        FROM order_main_union u
+        UNION ALL
+        SELECT
+        d.id as source_id,
+        m. CODE AS id,
+        m.allTotal AS Money,
+        m.payCoupon AS Coupons_Money,
+        m.openId as openId,
+        m.state as state
+        FROM order_main m
+        LEFT JOIN order_detail d on d.orderId = m.id
+        )g on g.openId=a.openId and a.sourceId=g.source_id
+        WHERE a.source = 5 and a.inOut=1
+        <if test="agent!=null and agent!=''">
+            and   c.agent_code=#{agent}
+        </if>
+        <if test="brand!=null and brand!=''">
+            and a.brandId=#{brand}
+        </if>
+        <if test="shop!=null and shop!=''">
+            and   a.shopId=#{shop}
+        </if>
+        <if test="start!=null and start!=''">
+            and   date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="end!=null and end!=''">
+            and   date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{end},'%Y-%m-%d %H:%i:%s')
+        </if>
+    </select>
+
+    <select id="findFirstConcernList" resultType="com.biz.model.Pmodel.basic.PbaseDetail" parameterType="java.util.HashMap">
+        SELECT
+        a.orderTotal,
+        a.orderState,
+        a.tradeType,
+        a.commission,
+        ifnull(e.phone, '暂无') AS userPhone,
+        a.id,
+        a.source,
+        a.sourceMsg,
+        a.type,
+        a.sourceId,
+        a.point90,
+        date_format(a.createTime,'%Y-%m-%d %H:%i:%s') AS createTime,
+        date_format(a.cancelTime,'%Y-%m-%d %H:%i:%s') AS cancelTime,
+        b. NAME AS brandName,
+        c.agent_name AS agentName,
+        d.business_name AS shopIdName,
+        ifnull(e.person_name, '暂无') AS userName,
+        ifnull(f.personName, '暂无') AS operUserName,
+        a.isdel
+        FROM
+        base_90_detail a
+        LEFT JOIN base_brand b ON b.brand_code = a.brandId
+        LEFT JOIN base_agent c ON c.agent_code = b.agent_code
+        LEFT JOIN base_shop d ON d.sid = a.shopId
+        LEFT JOIN base_user e ON e.open_id = a.openId
+        LEFT JOIN t_sys_user f ON f.id = a.userCode
+        where a.source = 6 and a.inOut=1
+        <if test="agent!=null and agent!=''">
+            and   c.agent_code=#{agent}
+        </if>
+        <if test="brand!=null and brand!=''">
+            and a.brandId=#{brand}
+        </if>
+        <if test="shop!=null and shop!=''">
+            and   d.sid=#{shop}
+        </if>
+        <if test="start!=null and start!=''">
+            and    date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="end!=null and end!=''">
+            and  date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{end},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="phone!=null and phone!=''">
+            and  e.phone = #{phone}
+        </if>
+        order by a.createTime desc
+    </select>
+
+    <select id="findCharge90CoinList" parameterType="java.util.HashMap" resultType="com.biz.model.Pmodel.basic.PbaseDetail">
+        SELECT
+        a.orderTotal,
+        a.orderState,
+        a.tradeType,
+        a.commission,
+        ifnull(e.phone, '暂无') AS userPhone,
+        a.id,
+        a.source,
+        a.sourceMsg,
+        a.type,
+        a.sourceId,
+        a.point90,
+        date_format(a.createTime,'%Y-%m-%d %H:%i:%s') AS createTime,
+        date_format(a.cancelTime,'%Y-%m-%d %H:%i:%s') AS cancelTime,
+        b. NAME AS brandName,
+        c.agent_name AS agentName,
+        d.business_name AS shopIdName,
+        ifnull(e.person_name, '暂无') AS userName,
+        ifnull(f.personName, '暂无') AS operUserName,
+        a.isdel
+        FROM
+        base_90_detail a
+        LEFT JOIN base_brand b ON b.brand_code = a.brandId
+        LEFT JOIN base_agent c ON c.agent_code = b.agent_code
+        LEFT JOIN base_shop d ON d.sid = a.shopId
+        LEFT JOIN base_user e ON e.open_id = a.openId
+        LEFT JOIN t_sys_user f ON f.id = a.userCode
+        LEFT JOIN balance_sheet s ON s.orderNum = a.sourceId
+        where a.source = 0 and a.inOut=1
+        <if test="agent!=null and agent!=''">
+            and   c.agent_code=#{agent}
+        </if>
+        <if test="brand!=null and brand!=''">
+            and a.brandId=#{brand}
+        </if>
+        <if test="shop!=null and shop!=''">
+            and   d.sid=#{shop}
+        </if>
+        <if test="start!=null and start!=''">
+            and    date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="end!=null and end!=''">
+            and  date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{end},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="phone!=null and phone!=''">
+            and  e.phone = #{phone}
+        </if>
+        order by a.createTime desc
+    </select>
+
+    <select id="findRefundCouponsList" resultType="com.biz.model.Pmodel.basic.PbaseDetail" parameterType="java.util.HashMap">
+        SELECT
+        a.orderTotal,
+        a.orderState,
+        a.tradeType,
+        a.commission,
+        ifnull(e.phone, '暂无') AS userPhone,
+        a.id,
+        a.source,
+        a.sourceMsg,
+        a.type,
+        a.sourceId,
+        a.point90,
+        date_format(a.createTime,'%Y-%m-%d %H:%i:%s') AS createTime,
+        date_format(a.cancelTime,'%Y-%m-%d %H:%i:%s') AS cancelTime,
+        b. NAME AS brandName,
+        c.agent_name AS agentName,
+        d.business_name AS shopIdName,
+        ifnull(e.person_name, '暂无') AS userName,
+        ifnull(f.personName, '暂无') AS operUserName,
+        a.isdel,
+        g.id as orderId,ifnull(g.Money,'0'),ifnull(g.Coupons_Money,'0'),g.state
+        FROM
+        base_90_detail a
+        LEFT JOIN base_brand b ON b.brand_code = a.brandId
+        LEFT JOIN base_agent c ON c.agent_code = b.agent_code
+        LEFT JOIN base_shop d ON d.sid = a.shopId
+        LEFT JOIN base_user e ON e.open_id = a.openId
+        LEFT JOIN t_sys_user f ON f.id = a.userCode
+        LEFT JOIN(
+        SELECT
+        o.code as source_id,
+        o.code as id,
+        o.cash_total as Money,
+        o.tickets_total as Coupons_Money,
+        o.open_id as openId,
+        o.state as state
+        FROM order_main_90 o
+        UNION ALL
+        SELECT
+        u.code as source_id,
+        u. CODE AS id,
+        u.order_total AS Money,
+        u.card_total AS Coupons_Money,
+        u.open_id as openId,
+        u.state as state
+        FROM order_main_union u
+        UNION ALL
+        SELECT
+        d.id as source_id,
+        m. CODE AS id,
+        m.allTotal AS Money,
+        m.payCoupon AS Coupons_Money,
+        m.openId as openId,
+        m.state as state
+        FROM order_main m
+        LEFT JOIN order_detail d on d.orderId = m.id
+        )g on g.openId=a.openId and a.sourceId=g.source_id
+        where a.source = 5 and a.inOut=1
+        <if test="agent!=null and agent!=''">
+            and   c.agent_code=#{agent}
+        </if>
+        <if test="brand!=null and brand!=''">
+            and a.brandId=#{brand}
+        </if>
+        <if test="shop!=null and shop!=''">
+            and   d.sid=#{shop}
+        </if>
+        <if test="start!=null and start!=''">
+            and    date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="end!=null and end!=''">
+            and  date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{end},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="phone!=null and phone!=''">
+            and  e.phone = #{phone}
+        </if>
+        order by a.createTime desc
+    </select>
+
+    <select id="getDataByDate" parameterType="java.util.Map" resultType="java.util.Map">
+        select * from order_server_statistics s
+        where date_format(s.createTime,'%Y-%m-%d')=date_format(#{date},'%Y-%m-%d')
+        limit 1
+    </select>
+    <select id="getDetailIdByOrder" resultType="com.biz.model.Pmodel.basic.PbaseDetail" parameterType="String">
+        select a.* from base_90_detail a
+        LEFT JOIN order_detail b on a.sourceId=b.id
+        where b.id=#{orderid}
+    </select>
+
+
+
+    <!--首次关注加积分  商户发券-->
+    <select id="findScanPage" parameterType="com.framework.model.Params" resultType="com.biz.model.Pmodel.basic.PbaseDetail">
+        SELECT
+        ifnull(e.phone, '暂无') AS userPhone,
+        a.id,
+        b. NAME AS brandName,
+        c.agent_name AS agentName,
+        d.business_name AS shopIdName,
+        a.source,
+        a.sourceMsg,
+        a.type,
+        a.sourceId,
+        a.point90,
+        date_format(a.createTime,'%Y-%m-%d %H:%i:%s') AS createTime,
+        date_format(a.cancelTime,'%Y-%m-%d %H:%i:%s') AS cancelTime,
+        ifnull(e.person_name, '暂无') AS userName,
+        a.isdel,
+        ifnull(a.ticketType,0) as ticketType
+        FROM
+        base_90_detail a
+        LEFT JOIN base_brand b ON b.brand_code = a.brandId
+        LEFT JOIN base_agent c ON c.agent_code = b.agent_code
+        LEFT JOIN base_shop d ON d.sid = a.shopId
+        LEFT JOIN base_user e ON e.open_id = a.openId
+        where a.source = 13 and a.inOut=1
+        <if test="parm.start!=null and parm.start!=''">
+            and    date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{parm.start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="parm.end!=null and parm.end!=''">
+            and  date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{parm.end},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="parm.phone!=null and parm.phone!=''">
+            and  e.phone = #{parm.phone}
+        </if>
+        <if test="parm.agent!=null and parm.agent!=''">
+            and  c.agent_code = #{parm.agent}
+        </if>
+        <if test="parm.brand!=null and parm.brand!=''">
+            and  b.brand_code = #{parm.brand}
+        </if>
+        <if test="parm.shop!=null and parm.shop!=''">
+            and  d.sid = #{parm.shop}
+        </if>
+        order by a.createTime desc
+        limit ${page},${rows}
+    </select>
+
+    <select id="findScanCouponsList" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.basic.PbaseDetail">
+        SELECT
+        ifnull(e.phone, '暂无') AS userPhone,
+        a.id,
+        a.source,
+        a.sourceMsg,
+        a.type,
+        a.sourceId,
+        b. NAME AS brandName,
+        c.agent_name AS agentName,
+        d.business_name AS shopIdName,
+       IFNULL(ROUND(a.point90/100,2),0) as point90,
+        date_format(a.createTime,'%Y-%m-%d %H:%i:%s') AS createTime,
+        date_format(a.cancelTime,'%Y-%m-%d %H:%i:%s') AS cancelTime,
+        ifnull(e.person_name, '暂无') AS userName,
+        a.isdel,
+        ifnull(a.ticketType,0) as ticketType
+        FROM
+        base_90_detail a
+        LEFT JOIN base_brand b ON b.brand_code = a.brandId
+        LEFT JOIN base_agent c ON c.agent_code = b.agent_code
+        LEFT JOIN base_shop d ON d.sid = a.shopId
+        LEFT JOIN base_user e ON e.open_id = a.openId
+        where a.source = 13 and a.inOut=1
+        <if test="start!=null and start!=''">
+            and    date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="end!=null and end!=''">
+            and  date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{end},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="phone!=null and phone!=''">
+            and  e.phone = #{phone}
+        </if>
+        <if test="agent!=null and agent!=''">
+            and  c.agent_code = #{agent}
+        </if>
+        <if test="brand!=null and brand!=''">
+            and  b.brand_code = #{brand}
+        </if>
+        <if test="shop!=null and shop!=''">
+            and  d.sid = #{shop}
+        </if>
+
+        order by a.createTime desc
+    </select>
+    <select id="countScan" parameterType="com.framework.model.Params" resultType="com.biz.model.Pmodel.basic.PbaseDetail">
+        SELECT
+        a.id
+        FROM
+        base_90_detail a
+        LEFT JOIN base_brand b ON b.brand_code = a.brandId
+        LEFT JOIN base_agent c ON c.agent_code = b.agent_code
+        LEFT JOIN base_shop d ON d.sid = a.shopId
+        LEFT JOIN base_user e ON e.open_id = a.openId
+        where a.source = 13 and a.inOut=1
+        <if test="parm.start!=null and parm.start!=''">
+            and    date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{parm.start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="parm.end!=null and parm.end!=''">
+            and  date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{parm.end},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="parm.phone!=null and parm.phone!=''">
+            and  e.phone = #{parm.phone}
+        </if>
+        <if test="parm.agent!=null and parm.agent!=''">
+            and  c.agent_code = #{parm.agent}
+        </if>
+        <if test="parm.brand!=null and parm.brand!=''">
+            and  b.brand_code = #{parm.brand}
+        </if>
+        <if test="parm.shop!=null and parm.shop!=''">
+            and  d.sid = #{parm.shop}
+        </if>
+
+    </select>
+
+    <select id="loadScanInfo" resultType="java.util.Map" parameterType="java.util.Map">
+        SELECT IFNULL(ROUND(SUM(a.point90)/100,2),0) as point,
+        IFNULL(ROUND(SUM(case when a.ticketType=0 then a.point90 else 0 end)/100,2),0) as pointJL,
+        IFNULL(ROUND(SUM(case when a.ticketType=1 then a.point90 else 0 end)/100,2),0) as pointLG,
+        IFNULL(ROUND(SUM(case when a.ticketType=2 then a.point90 else 0 end)/100,2),0) as pointTY,
+        IFNULL(ROUND(SUM(a.point90Now)/100,2),0) as point90Now,
+        COUNT(a.id) as count from base_90_detail a
+        LEFT JOIN base_user e on a.openId=e.open_id
+        LEFT JOIN base_brand b ON b.brand_code = a.brandId
+        LEFT JOIN base_agent c ON c.agent_code = b.agent_code
+        LEFT JOIN base_shop d ON d.sid = a.shopId
+        where a.source=13 and a.isdel=0
+        <if test="start!=null and start!=''">
+            and   date_format(a.createTime,'%Y-%m-%d %H:%i:%s')>= date_format(#{start},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="end!=null and end!=''">
+            and   date_format(a.createTime,'%Y-%m-%d %H:%i:%s')&lt;= date_format(#{end},'%Y-%m-%d %H:%i:%s')
+        </if>
+        <if test="phone!=null and phone!=''">
+            and   e.phone=#{phone}
+        </if>
+        <if test="agent!=null and agent!=''">
+            and  c.agent_code = #{agent}
+        </if>
+        <if test="brand!=null and brand!=''">
+            and  b.brand_code = #{brand}
+        </if>
+        <if test="shop!=null and shop!=''">
+            and  d.sid = #{shop}
+        </if>
+    </select>
+</mapper>

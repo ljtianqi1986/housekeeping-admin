@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="picDao">
+    <select id="findPageForRunPicWX"  resultType="com.biz.model.Pmodel.basic.Pslide">
+        SELECT
+        a.id,
+        a.type,
+        a.name,
+        a.goodsId,
+        a.path,
+        a.createTime,
+        a.position,
+        a.url,
+        a.isOpen,
+        a.price,
+        b. NAME AS goodsName,
+        b.isSale
+        FROM wx_slide a
+        LEFT JOIN base_wxgoods b ON b.id = a.goodsId
+        WHERE
+        a.isdel = 0
+        <!--and a.shopid =#{identity_code}-->
+        order by a.sort asc
+        limit ${page},${rows}
+    </select>
+
+    <!-- 数据量ForRunPic -->
+    <select id="countForRunPicWX"  resultType="java.lang.Integer">
+        select count(1)
+        FROM wx_slide a
+        LEFT JOIN base_wxgoods b ON b.id = a.goodsId
+        where a.isdel = 0
+        <!--and a.shopid = #{identity_code}-->
+    </select>
+
+    <insert id="saveSlide" parameterType="com.biz.model.Pmodel.basic.Pslide">
+        INSERT into wx_slide(id,type,name,notes,goodsId,path,sort,url,position,price,isOpen) VALUES
+        (#{id},#{type},#{name},#{notes},#{goodsId},#{path},#{sort},#{url},#{position},#{price},#{isOpen})
+    </insert>
+
+    <update id="updateSlide" parameterType="com.biz.model.Pmodel.basic.Pslide">
+        UPDATE wx_slide set type=#{type},name=#{name},notes=#{notes},goodsId=#{goodsId},path=#{path},
+        sort=#{sort},url=#{url},position=#{position},price=#{price},isOpen=#{isOpen}
+        where id=#{id}
+    </update>
+
+    <select id="toGetEdit" parameterType="String" resultType="com.biz.model.Pmodel.basic.Pslide">
+        SELECT a.*,b.`name` as goodsName from wx_slide a
+        LEFT JOIN base_wxgoods b on a.goodsId=b.id
+        where a.id=#{id}
+    </select>
+
+    <update id="delGridById" parameterType="String">
+        UPDATE wx_slide set isdel=1 where id in (${_parameter})
+    </update>
+
+
+    <select id="findGoodsGroupGrid" parameterType="com.framework.model.Params"  resultType="com.biz.model.Pmodel.basic.PwxgoodsGroup">
+        select b.path as defImgUrl,c.path as customImgUrl,a.* from  wx_goods_group as a
+        LEFT JOIN base_pics as b on a.icon=b.id
+        LEFT JOIN base_pics as c on a.customImg=c.id
+        where a.isdel=0 and a.isTicket=0
+        <if test="searchtext != null and searchtext != ''">
+            and a.name like concat('%',#{searchtext},'%')
+        </if>
+        order by a.createTime asc
+        limit ${page},${rows}
+    </select>
+
+    <!-- 数据量ForRunPic -->
+    <select id="findGoodsGroupCount" parameterType="com.framework.model.Params"  resultType="java.lang.Integer">
+        select count(1) from  wx_goods_group as a
+        LEFT JOIN base_pics as b on a.icon=b.id
+        LEFT JOIN base_pics as c on a.customImg=c.id
+        where a.isdel=0 and a.isTicket=0
+        <if test="searchtext != null and searchtext != ''">
+            and a.name like concat('%',#{searchtext},'%')
+        </if>
+    </select>
+
+    <select id="findPwxgoodsGroupById" parameterType="String" resultType="com.biz.model.Pmodel.basic.PwxgoodsGroup">
+        select b.path as defImgUrl,c.path as customImgUrl,a.* from  wx_goods_group as a
+        LEFT JOIN base_pics as b on a.icon=b.id
+        LEFT JOIN base_pics as c on a.customImg=c.id
+        where a.id=#{id}
+    </select>
+
+</mapper>

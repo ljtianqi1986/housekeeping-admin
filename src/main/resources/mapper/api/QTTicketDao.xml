@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="QTTicketDao">
+
+    <!-- 查询待打印小票订单状态-->
+    <select id="queryTicketInfoByOrderId" parameterType="String" resultType="java.util.HashMap">
+        SELECT
+        u.phone,u.balance_cash,u.balance_90,
+        m.goodsTotal total,m.payTotal,m.coinPayTotal,m.payCoupon,m.giftCoupon,
+        m.id,m.userCode,m.servicePayTotal,
+        GROUP_CONCAT(w.`name`)as name,GROUP_CONCAT(d.count)as count,GROUP_CONCAT(d.price)as price,GROUP_CONCAT(d.goodsTotal)as goodsTotal
+        from order_main m
+        LEFT JOIN order_detail d on d.orderId = m.id
+        LEFT JOIN base_wxgoods w on w.id = d.goodsId
+        left join base_user u on m.buyUserId = u.id
+        WHERE m.id=#{id}
+    </select>
+
+    <select id="getBrandOnlyByCode" parameterType="String" resultType="com.biz.model.Pmodel.api.Brand">
+        SELECT A.* FROM BASE_BRAND A
+        WHERE A.ISDEL = 0 AND A.BRAND_CODE=#{brand_code}
+    </select>
+
+
+    <!-- 添加核券记录 -->
+    <insert id="insertDetailVoucher" parameterType="com.biz.model.Pmodel.api.DetailVoucher"  useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO	voucher_detail(brand_code,voucher_code,name,pic,firstValue,secondValue,thirdValue,isSale,price,stock,tags)
+        VALUES (#{brand_code},#{voucher_code},#{name},#{pic},#{firstValue},#{secondValue},#{thirdValue},#{isSale},#{price},#{stock},#{tags})
+    </insert>
+
+    <select id="queryVoucherDetail" parameterType="java.util.Map" resultType="java.util.Map">
+        SELECT
+        b. NAME AS brand_name,
+        b.brand_code,
+        a.voucher_code AS order_id,
+        IFNULL(c.code, '') as order_code,
+        a. NAME AS name,
+        a.pic AS goodsPath,
+        IFNULL(a.firstValue, '') AS firstValue,
+        IFNULL(a.secondValue, '') AS secondValue,
+        IFNULL(a.thirdValue, '') AS thirdValue,
+        a.tags,
+        DATE_FORMAT(
+        a.create_time,
+        '%Y-%m-%d %H:%i%s'
+        ) AS create_time,
+        IFNULL(d.person_name,'') as person_name,
+        IFNULL(d.phone,'') as person_phone
+        FROM
+        voucher_detail a
+        LEFT JOIN base_brand b ON a.brand_code = b.brand_code
+        LEFT JOIN base_shop bs on bs.brand_code=b.brand_code
+        LEFT JOIN order_main c on c.id=a.voucher_code
+        LEFT JOIN base_user d on d.id=c.buyUserId
+        where bs.sid=#{sid}
+        order by create_time desc
+        LIMIT ${pageNum},${pageSize}
+    </select>
+
+    <select id="queryVoucherDetailCount" parameterType="java.util.Map" resultType="int">
+        SELECT
+        ifnull(count(a.id),0)
+        FROM
+        voucher_detail a
+        LEFT JOIN base_brand b ON a.brand_code = b.brand_code
+        LEFT JOIN order_main c on c.id=a.voucher_code
+        LEFT JOIN base_user d on d.id=c.buyUserId
+        LEFT JOIN base_shop bs on bs.brand_code=b.brand_code
+        where bs.sid=#{sid}
+    </select>
+
+</mapper>

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cardTypeDao">
+
+	<select id="findOfflineCardTypePage" resultType="java.util.HashMap" parameterType="java.util.HashMap" >
+		SELECT
+		a.id AS id,
+		a.NAME AS name,
+		a.percentage AS percentage,
+		a.agentId AS agentId,
+		a.userId AS userId,
+		b.personName AS userName,
+		c.agent_name as agentName,
+		date_format(a.createTime,'%Y-%m-%d %H:%i:%s') as createTime
+		FROM
+		offline_card_90_type a
+		LEFT JOIN t_sys_user b ON a.userId = b.id
+		LEFT JOIN base_agent c ON c.agent_code = a.agentId
+		WHERE
+		a.isdel = 0
+		AND a.agentId = #{agentId}
+		<if test="name != null and name != '' ">
+			and a.name like concat('%',#{name} ,'%')
+		</if>
+		<!--<if test="startDate != null and startDate != ''">&lt;!&ndash; 关键词检索 &ndash;&gt;-->
+			<!--AND date(a.createTime) >= date(#{startDate})-->
+		<!--</if>-->
+		<!--<if test="endDate != null and endDate != ''">&lt;!&ndash; 关键词检索 &ndash;&gt;-->
+			<!--AND date(a.createTime) &lt;= date(#{endDate})-->
+		<!--</if>-->
+
+		limit #{begin},#{rows}
+
+	</select>
+
+
+	<select id="findOfflineCardTypeCount" resultType="java.lang.Integer" parameterType="java.util.HashMap" >
+		SELECT count(1)
+		FROM
+		offline_card_90_type a
+		LEFT JOIN t_sys_user b ON a.userId = b.id
+		LEFT JOIN base_agent c ON c.agent_code = a.agentId
+		WHERE
+		a.isdel = 0
+		AND a.agentId = #{agentId}
+		<if test="name != null and name != '' ">
+			and a.name like concat('%',#{name} ,'%')
+		</if>
+
+
+	</select>
+
+
+</mapper>

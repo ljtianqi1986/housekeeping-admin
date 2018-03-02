@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="userDao">
+
+    <select id="findAgentUserGrid" parameterType="com.framework.model.Params" resultType="com.biz.model.Pmodel.sys.Puser">
+    SELECT * FROM SYS_USER
+    WHERE IDENTITY_CODE=#{searchtext} AND ISDEL=0
+        ORDER BY create_time DESC
+        limit ${page},${rows}
+    </select>
+    <select id="findAgentUserCount" parameterType="com.framework.model.Params" resultType="java.lang.Integer">
+        SELECT count(*) FROM SYS_USER
+        WHERE IDENTITY_CODE=#{searchtext} AND ISDEL=0
+    </select>
+
+    <select id="saveAgentUser" parameterType="com.biz.model.Pmodel.basic.Pagent">
+        insert into t_sys_user(id,identity,identity_code,pwd,type,loginName,personName)
+        values(#{userCode},2,#{agent_code},#{pwd},1,#{loginName},#{agent_name})
+    </select>
+    <select id="checkLoginName" parameterType="com.biz.model.Pmodel.basic.Pagent"  resultType="java.lang.Integer">
+        select count(id) from t_sys_user where isdel=0 and loginName=#{loginName}
+    </select>
+
+    <select id="findIdentity_code" parameterType="String" resultType="String">
+        SELECT identity_code from t_sys_user  where loginName=#{parameter}
+    </select>
+
+    <select id="findUser" parameterType="String" resultType="com.biz.model.Pmodel.User">
+        SELECT *,loginName as login_name from t_sys_user  where loginName=#{parameter} and isdel=0 and isLock=0
+    </select>
+
+    <select id="findUserByUserName" parameterType="String" resultType="com.biz.model.Pmodel.User">
+        SELECT * FROM t_sys_user WHERE loginName=#{userName} and isdel=0 and isLock=0
+    </select>
+
+    <select id="queryUserListForJiuLingCoin" parameterType="String" resultType="java.util.HashMap">
+        SELECT  id,phone,person_name FROM base_user WHERE isdel=0 and state=1 and phone is not NULL  and phone!=''
+    </select>
+
+    <select id="findBaseUserByPhone" parameterType="String" resultType="com.biz.model.Pmodel.api.BaseUser">
+        SELECT  * FROM base_user WHERE isdel=0 and phone =#{phone}
+    </select>
+
+    <!-- 判断用户名和密码 -->
+    <select id="getUserForLoginhashMap" parameterType="java.util.HashMap" resultType="com.biz.model.Pmodel.User">
+        SELECT * FROM T_SYS_USER WHERE loginName = #{login_name} and PWD = #{pwd_md5}
+        AND ISLOCK=0 AND ISDEL=0 AND IDENTITY = 4
+    </select>
+
+    <!-- 获取 -->
+    <select id="getBaseUserByOpen_id" parameterType="String" resultType="com.biz.model.Pmodel.User">
+        SELECT u1.id as userid,IFNULL(c.giveAmount,0) as giveAmount,u.* FROM base_user u
+        left join (select id,openId from t_sys_user where isdel=0)u1 on u1.openId=u.open_id
+        left join t_user_coin c on c.userId=u1.id
+        WHERE u.open_id=#{open_id} and u.ISDEL = 0
+    </select>
+
+
+    <select id="getUserByCode" parameterType="java.util.Map" resultType="com.biz.model.Pmodel.User">
+        select id,personName from t_sys_user where id=#{userCode}
+
+    </select>
+
+    <insert id="saveBrandUser" parameterType="com.biz.model.Pmodel.basic.Pbrand">
+        insert into t_sys_user(id,identity,identity_code,pwd,phone,type,loginName,personName)
+        values(#{userCode},3,#{brandCode},#{pwd},#{telephone},1,#{loginName},#{name})
+    </insert>
+
+    <select id="getShopIdByAppId" parameterType="String" resultType="java.util.Map">
+        select * from t_sys_appid
+        where appid = #{appId} and isdel = 0
+        limit 1
+    </select>
+
+
+    <select id="UserBrandisPeriodization" parameterType="java.util.Map" resultType="java.util.Map">
+        SELECT
+            IFNULL(b.isPeriodization, 0) AS isPeriodization
+        FROM
+            base_brand b
+        left join base_shop a on a.brand_code = b.brand_code
+        WHERE
+            a.sid = #{identity_code} and b.isdel=0
+    </select>
+
+    <!-- 添加微信拉取信息，临时保存 -->
+    <insert id="insertWxUser" parameterType="java.util.List">
+        INSERT INTO base_wx_user(open_id) values
+        <foreach collection="list" item="item" index="index" separator=",">
+            (#{item})
+        </foreach>
+    </insert>
+    <!-- 删除 -->
+    <delete id="deleteBaseWxUser" parameterType="String">
+        delete from base_wx_user
+    </delete>
+    <!-- 查询所有未匹配上的用户 -->
+    <select id="getUserIsNull" parameterType="String" resultType="com.biz.model.Pmodel.weixin.UserInfo">
+        SELECT DISTINCT w.open_id as openid FROM base_wx_user w
+        left join base_user u on w.open_id=u.open_id
+        where u.open_id is null
+    </select>
+    <!-- 保存用户信息 -->
+    <insert id="insertUserInfo" parameterType="java.util.List">
+        INSERT INTO base_user(id,open_id,person_name,sex,cover,country,province,city,state) values
+        <foreach collection="list" item="item" index="index" separator=",">
+            (#{item.id},#{item.openid},#{item.nickname},#{item.sex},#{item.headimgurl},#{item.country},#{item.province},#{item.city},#{item.subscribe})
+        </foreach>
+    </insert>
+
+    <!-- 关注时更新状态 -->
+    <update id="updateCliUserState" parameterType="java.util.Map">
+        UPDATE
+        base_user
+        SET
+        state = #{state},
+        <if test="state == 0"><!-- 取消关注-->
+            unsubscribeTime = now()
+        </if>
+        <if test="state == 1"><!-- 关注-->
+            subscribeTime = now()
+        </if>
+        WHERE
+        ISDEL = 0
+        AND	OPEN_ID = #{open_id}
+    </update>
+
+    <select id="findPayMsg" resultType="String">
+        SELECT note from wx_reply where isdel=0 limit 1
+    </select>
+
+    <select id="findMessage" resultType="java.util.Map">
+        SELECT * from wx_reply where isdel=0 ORDER BY sort
+    </select>
+    <select id="findSidByCode" parameterType="String" resultType="String">
+        SELECT sid from base_shop
+        where brand_code=#{identity_code} and isdel=0
+    </select>
+</mapper>
